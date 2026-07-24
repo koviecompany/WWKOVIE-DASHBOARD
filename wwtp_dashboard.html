@@ -86,6 +86,7 @@
   .panel{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px;display:flex;flex-direction:column;min-height:260px;}
   .panel.wide{grid-column:span 2;}
   .panel.full{grid-column:1/-1;}
+  .panel.eq{min-height:300px;}
   .panel.tall{min-height:340px;}
   .panel h3{margin:0 0 10px;font-size:11.5px;letter-spacing:.5px;color:var(--orange);display:flex;align-items:center;justify-content:space-between;font-weight:800;}
   .chart-wrap{position:relative;flex:1;min-height:180px;}
@@ -228,10 +229,12 @@
   <div id="panelStore">
     <div class="panel wide" id="panel-p1">
       <h3>LƯU LƯỢNG ĐẦU VÀO — UF & RO
-        <span style="display:flex;gap:8px;align-items:center;font-size:9.5px;color:var(--gray);font-weight:600;flex-wrap:wrap;">
-          %UF đầu vào <input type="number" id="ufInputPct" value="95" min="0" max="100" onchange="onUFSettingsChange()" style="width:44px;background:var(--panel2);border:1px solid var(--border);border-radius:4px;color:var(--white);padding:2px 4px;">
-          %Reject UF <input type="number" id="ufRejectPct" value="10" min="0" max="100" onchange="onUFSettingsChange()" style="width:44px;background:var(--panel2);border:1px solid var(--border);border-radius:4px;color:var(--white);padding:2px 4px;">
-        </span>
+        <select id="flowViewMode" onchange="renderFlowChart()" style="background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:10px;padding:3px 6px;">
+          <option value="ca">Theo ca</option>
+          <option value="ngay">Theo ngày</option>
+          <option value="tuan">Theo tuần</option>
+          <option value="thang" selected>Theo tháng</option>
+        </select>
       </h3>
       <div class="chart-wrap"><canvas id="flowTrend"></canvas></div>
     </div>
@@ -245,10 +248,10 @@
       <h3>BẢNG TỔNG HỢP VẬN HÀNH (Operating Summary)</h3>
       <div style="overflow-x:auto;"><table><thead><tr><th>Chỉ tiêu</th><th>Kỳ này</th><th>Kỳ trước</th><th>Chênh lệch</th><th>%</th></tr></thead><tbody id="summaryBody"></tbody></table></div>
     </div>
-    <div class="panel" id="panel-p6"><h3>ĐÓNG GÓP LƯU LƯỢNG THEO HỆ UF / RO</h3><div id="lineContribution"></div></div>
+    <div class="panel eq" id="panel-p6"><h3>LƯU LƯỢNG THEO HỆ UF / RO</h3><div id="lineContribution"></div></div>
     <div class="panel" id="panel-p7"><h3>CHÊNH LỆCH CHI PHÍ HÓA CHẤT (so với kỳ trước)</h3><div class="chart-wrap"><canvas id="waterfall"></canvas></div></div>
 
-    <div class="panel" id="panel-p8">
+    <div class="panel eq" id="panel-p8">
       <h3>LƯU LƯỢNG ĐẦU VÀO
         <select id="volViewMode" onchange="renderVolMonth()" style="background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:10px;padding:3px 6px;">
           <option value="thang">Theo tháng</option>
@@ -257,7 +260,7 @@
       </h3>
       <div class="chart-wrap"><canvas id="volMonth"></canvas></div>
     </div>
-    <div class="panel" id="panel-p9">
+    <div class="panel eq" id="panel-p9">
       <h3>TỔNG HÓA CHẤT SỬ DỤNG
         <select id="chemViewMode" onchange="renderChemByMode()" style="background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:10px;padding:3px 6px;">
           <option value="ca">Theo ca</option>
@@ -624,30 +627,79 @@ function isoWeekLabel(date){
 function monthLabel(date){ return `T${date.getMonth()+1}/${String(date.getFullYear()).slice(2)}`; }
 function dateLabel(date){ return `${String(date.getDate()).padStart(2,'0')}/${String(date.getMonth()+1).padStart(2,'0')}`; }
 
-/* ================= UF/RO FLOW MODEL (dựa trên %UF, %Reject UF tự cài) ================= */
-function computeUFROSeries(monthlyTrend){
-  const ufInputPct = Number(document.getElementById('ufInputPct')?.value || 95);
-  const ufRejectPct = Number(document.getElementById('ufRejectPct')?.value || 10);
-  const influent = monthlyTrend.map(r=>Number(r.influent_m3||0));
-  const roPermeate = monthlyTrend.map(r=>Number(r.ro_permeate_m3||0));
-  const ufInput = influent.map(v=>v*ufInputPct/100);
-  const ufReject = ufInput.map(v=>v*ufRejectPct/100);
-  const roInput = ufInput.map((v,i)=>v-ufReject[i]);
-  const roReject = roInput.map((v,i)=>Math.max(0, v-roPermeate[i]));
-  return {influent, ufInput, ufReject, roInput, roReject, roPermeate, ufInputPct, ufRejectPct};
+/* ================= UF/RO FLOW MODEL (dùng % mặc định nội bộ + gộp theo ca/ngày/tuần/tháng) ================= */
+const DEFAULT_UF_INPUT_PCT = 95;
+const DEFAULT_UF_REJECT_PCT = 10;
+
+function getFlowBuckets(mode){
+  // Trả về {labels, influent[], roPermeate[]} theo mode: ca/ngay/tuan/thang
+  if(mode==='thang'){
+    const mt = lastData.monthlyTrend||[];
+    return { labels: mt.map(r=>r.month), influent: mt.map(r=>Number(r.influent_m3||0)), roPermeate: mt.map(r=>Number(r.ro_permeate_m3||0)) };
+  }
+  const entries = lastData.dailyEntries||[];
+  if(entries.length===0){
+    return { labels:['Chưa có báo cáo ca nào'], influent:[0], roPermeate:[0] };
+  }
+  let labels = []; const infBucket = {}; const roBucket = {};
+
+  if(mode==='ca'){
+    let latestDate = null;
+    entries.forEach(e=>{ const dt=parseDateSmart(e.date); if(dt && (!latestDate || dt>latestDate)) latestDate=dt; });
+    labels = ['07:00–19:00 (Ca ngày)','19:00–07:00 (Ca tối)'];
+    labels.forEach(l=>{ infBucket[l]=0; roBucket[l]=0; });
+    entries.forEach(e=>{
+      const dt = parseDateSmart(e.date);
+      if(!dt || !latestDate || dt.getTime()!==latestDate.getTime()) return;
+      const key = (e.shift||'').indexOf('tối')>-1 ? labels[1] : labels[0];
+      infBucket[key]+=Number(e.influent_m3||0); roBucket[key]+=Number(e.ro_permeate_m3||0);
+    });
+  } else if(mode==='ngay'){
+    const monday = getMondayOfWeek(new Date());
+    const dayNames = ['Thứ 2','Thứ 3','Thứ 4','Thứ 5','Thứ 6','Thứ 7'];
+    labels = dayNames.map((n,i)=>{ const d=new Date(monday); d.setDate(monday.getDate()+i); return `${n} (${dateLabel(d)})`; });
+    labels.forEach(l=>{ infBucket[l]=0; roBucket[l]=0; });
+    entries.forEach(e=>{
+      const dt = parseDateSmart(e.date);
+      if(!dt) return;
+      const diffDays = Math.floor((dt-monday)/86400000);
+      if(diffDays<0 || diffDays>5) return;
+      const key = labels[diffDays];
+      infBucket[key]+=Number(e.influent_m3||0); roBucket[key]+=Number(e.ro_permeate_m3||0);
+    });
+  } else { // tuan
+    entries.forEach(e=>{
+      const dt = parseDateSmart(e.date);
+      if(!dt) return;
+      const key = isoWeekLabel(dt);
+      if(labels.indexOf(key)===-1) labels.push(key);
+      infBucket[key]=(infBucket[key]||0)+Number(e.influent_m3||0);
+      roBucket[key]=(roBucket[key]||0)+Number(e.ro_permeate_m3||0);
+    });
+    labels.sort();
+    if(labels.length>8) labels = labels.slice(-8);
+  }
+  return { labels, influent: labels.map(l=>infBucket[l]||0), roPermeate: labels.map(l=>roBucket[l]||0) };
 }
 
-function onUFSettingsChange(){ recomputeFlowChart(); renderEfficiencyTrend(); }
+function computeUFROSeries(influent, roPermeate){
+  const ufInput = influent.map(v=>v*DEFAULT_UF_INPUT_PCT/100);
+  const ufReject = ufInput.map(v=>v*DEFAULT_UF_REJECT_PCT/100);
+  const roInput = ufInput.map((v,i)=>v-ufReject[i]);
+  const roReject = roInput.map((v,i)=>Math.max(0, v-roPermeate[i]));
+  return {ufInput, ufReject, roInput, roReject};
+}
 
-function recomputeFlowChart(){
+function renderFlowChart(){
   if(!lastData) return;
-  const months = (lastData.monthlyTrend||[]).map(r=>r.month);
-  const s = computeUFROSeries(lastData.monthlyTrend||[]);
+  const mode = document.getElementById('flowViewMode')?.value || 'thang';
+  const b = getFlowBuckets(mode);
+  const s = computeUFROSeries(b.influent, b.roPermeate);
   if(charts.flowTrend) charts.flowTrend.destroy();
   charts.flowTrend = new Chart(document.getElementById('flowTrend'), {
     type:'line',
-    data:{labels:months, datasets:[
-      {label:'Nước thải đầu vào', data:s.influent, borderColor:'#f5811f', backgroundColor:'#f5811f', tension:.35, pointRadius:3},
+    data:{labels:b.labels, datasets:[
+      {label:'Nước thải đầu vào', data:b.influent, borderColor:'#f5811f', backgroundColor:'#f5811f', tension:.35, pointRadius:3},
       {label:'UF đầu vào', data:s.ufInput, borderColor:'#4fc3f7', backgroundColor:'#4fc3f7', tension:.35, pointRadius:3},
       {label:'UF Reject', data:s.ufReject, borderColor:'#e5484d', backgroundColor:'#e5484d', tension:.35, pointRadius:3, borderDash:[4,3]},
       {label:'RO đầu vào', data:s.roInput, borderColor:'#f5f5f5', backgroundColor:'#f5f5f5', tension:.35, pointRadius:3},
@@ -655,7 +707,7 @@ function recomputeFlowChart(){
     ]},
     options:{responsive:true,maintainAspectRatio:false,
       plugins:{legend:{position:'bottom',labels:{boxWidth:8,boxHeight:8,padding:8,font:{size:9.5}}}},
-      scales:{y:{grid:{color:'#26262a'},ticks:{callback:v=>(v/1000).toFixed(1)+'K'}}, x:{grid:{display:false}}}}
+      scales:{y:{grid:{color:'#26262a'},ticks:{callback:v=>(v/1000).toFixed(1)+'K'}}, x:{grid:{display:false},ticks:{font:{size:8.5}}}}}
   });
 }
 
@@ -663,8 +715,7 @@ function renderEfficiencyTrend(){
   if(!lastData) return;
   const months = (lastData.monthlyTrend||[]).map(r=>r.month);
   const roRecovery = (lastData.monthlyTrend||[]).map(r=>Number(r.recovery_pct||0));
-  const ufRejectPct = Number(document.getElementById('ufRejectPct')?.value || 10);
-  const ufRecovery = months.map(()=> 100-ufRejectPct);
+  const ufRecovery = months.map(()=> 100-DEFAULT_UF_REJECT_PCT);
   if(charts.efficiencyTrend) charts.efficiencyTrend.destroy();
   charts.efficiencyTrend = new Chart(document.getElementById('efficiencyTrend'), {
     type:'line',
@@ -691,7 +742,7 @@ function renderVolMonth(){
     });
     labels = Object.keys(buckets);
     values = labels.map(k=>buckets[k]);
-    if(labels.length===0){ labels=['Chưa có dữ liệu ca']; values=[0]; }
+    if(labels.length===0){ labels=['Chưa có báo cáo ca nào']; values=[0]; }
   } else {
     labels = (lastData.monthlyTrend||[]).map(r=>r.month);
     values = (lastData.monthlyTrend||[]).map(r=>Number(r.influent_m3||0));
@@ -714,6 +765,15 @@ const CHEM_FIELDS = [
   {key:'chem_genesys', label:'Genesys LS', color:'#ffb066'}
 ];
 
+function getMondayOfWeek(date){
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = (day===0? -6 : 1) - day;
+  d.setDate(d.getDate()+diff);
+  d.setHours(0,0,0,0);
+  return d;
+}
+
 function renderChemByMode(){
   if(!lastData) return;
   const mode = document.getElementById('chemViewMode')?.value || 'thang';
@@ -734,18 +794,55 @@ function renderChemByMode(){
   const bucketsByChem = {};
   CHEM_FIELDS.forEach(c=>bucketsByChem[c.key]={});
 
-  entries.forEach(e=>{
-    const dt = parseDateSmart(e.date);
-    if(!dt) return;
-    let key;
-    if(mode==='ca') key = `${dateLabel(dt)} - ${e.shift||''}`;
-    else if(mode==='ngay') key = dateLabel(dt);
-    else if(mode==='tuan') key = isoWeekLabel(dt);
-    else key = monthLabel(dt);
-    if(labels.indexOf(key)===-1) labels.push(key);
-    CHEM_FIELDS.forEach(c=>{ bucketsByChem[c.key][key] = (bucketsByChem[c.key][key]||0) + Number(e[c.key]||0); });
-  });
-  if(labels.length>12) labels = labels.slice(-12);
+  if(mode==='ca'){
+    // Hiển thị theo giờ trong NGÀY GẦN NHẤT có báo cáo: Ca ngày (07:00–19:00) / Ca tối (19:00–07:00)
+    let latestDate = null;
+    entries.forEach(e=>{ const dt=parseDateSmart(e.date); if(dt && (!latestDate || dt>latestDate)) latestDate=dt; });
+    labels = ['07:00–19:00 (Ca ngày)','19:00–07:00 (Ca tối)'];
+    CHEM_FIELDS.forEach(c=>{ bucketsByChem[c.key][labels[0]]=0; bucketsByChem[c.key][labels[1]]=0; });
+    entries.forEach(e=>{
+      const dt = parseDateSmart(e.date);
+      if(!dt || !latestDate || dt.getTime()!==latestDate.getTime()) return;
+      const key = (e.shift||'').indexOf('tối')>-1 ? labels[1] : labels[0];
+      CHEM_FIELDS.forEach(c=>{ bucketsByChem[c.key][key]+=Number(e[c.key]||0); });
+    });
+  } else if(mode==='ngay'){
+    // Hiển thị theo ngày trong TUẦN HIỆN TẠI: Thứ 2 -> Thứ 7
+    const monday = getMondayOfWeek(new Date());
+    const dayNames = ['Thứ 2','Thứ 3','Thứ 4','Thứ 5','Thứ 6','Thứ 7'];
+    labels = dayNames.map((n,i)=>{
+      const d = new Date(monday); d.setDate(monday.getDate()+i);
+      return `${n} (${dateLabel(d)})`;
+    });
+    CHEM_FIELDS.forEach(c=>{ labels.forEach(l=>bucketsByChem[c.key][l]=0); });
+    entries.forEach(e=>{
+      const dt = parseDateSmart(e.date);
+      if(!dt) return;
+      const diffDays = Math.floor((dt - monday)/86400000);
+      if(diffDays<0 || diffDays>5) return;
+      const key = labels[diffDays];
+      CHEM_FIELDS.forEach(c=>{ bucketsByChem[c.key][key]+=Number(e[c.key]||0); });
+    });
+  } else if(mode==='tuan'){
+    entries.forEach(e=>{
+      const dt = parseDateSmart(e.date);
+      if(!dt) return;
+      const key = isoWeekLabel(dt);
+      if(labels.indexOf(key)===-1) labels.push(key);
+      CHEM_FIELDS.forEach(c=>{ bucketsByChem[c.key][key] = (bucketsByChem[c.key][key]||0) + Number(e[c.key]||0); });
+    });
+    labels.sort();
+    if(labels.length>8) labels = labels.slice(-8);
+  } else {
+    entries.forEach(e=>{
+      const dt = parseDateSmart(e.date);
+      if(!dt) return;
+      const key = monthLabel(dt);
+      if(labels.indexOf(key)===-1) labels.push(key);
+      CHEM_FIELDS.forEach(c=>{ bucketsByChem[c.key][key] = (bucketsByChem[c.key][key]||0) + Number(e[c.key]||0); });
+    });
+    if(labels.length>12) labels = labels.slice(-12);
+  }
 
   const datasets = CHEM_FIELDS.map(c=>({
     label:c.label, data:labels.map(l=>bucketsByChem[c.key][l]||0), backgroundColor:c.color, borderRadius:3
@@ -756,7 +853,7 @@ function renderChemByMode(){
     type:'bar', data:{labels, datasets},
     options:{responsive:true,maintainAspectRatio:false,
       plugins:{legend:{position:'bottom',labels:{boxWidth:8,boxHeight:8,padding:6,font:{size:8.5}}}},
-      scales:{y:{grid:{color:'#26262a'}}, x:{grid:{display:false},ticks:{font:{size:8.5}}}}}
+      scales:{y:{grid:{color:'#26262a'}}, x:{grid:{display:false},ticks:{font:{size:8}}}}}
   });
 }
 
@@ -806,7 +903,7 @@ function renderDashboard(d){
   const months = (d.monthlyTrend||[]).map(r=>r.month);
   const orange='#f5811f', white='#f5f5f5', gray='#6b7077', green='#3ecf8e', grid='#26262a';
 
-  recomputeFlowChart();
+  renderFlowChart();
 
   const inf = d.influent||[];
   const infColors = ['#f5811f','#d9d9d9','#8a8a8a','#4a4a4a','#c96f1a'];
