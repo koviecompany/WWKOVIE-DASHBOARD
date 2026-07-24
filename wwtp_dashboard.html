@@ -242,7 +242,17 @@
       <div class="chart-wrap"><canvas id="influentDonut"></canvas><div class="donut-center" id="influentCenter"><b>—</b><span>Tổng lưu lượng</span></div></div>
       <div class="legend" id="legend1"></div>
     </div>
-    <div class="panel" id="panel-p4"><h3>XU HƯỚNG TỶ LỆ RECOVERY — RO & UF (%)</h3><div class="chart-wrap"><canvas id="efficiencyTrend"></canvas></div></div>
+    <div class="panel" id="panel-p4">
+      <h3>XU HƯỚNG TỶ LỆ RECOVERY — RO & UF (%)
+        <select id="recoveryViewMode" onchange="renderEfficiencyTrend()" style="background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:10px;padding:3px 6px;">
+          <option value="ca">Theo ca</option>
+          <option value="ngay">Theo ngày</option>
+          <option value="tuan">Theo tuần</option>
+          <option value="thang" selected>Theo tháng</option>
+        </select>
+      </h3>
+      <div class="chart-wrap"><canvas id="efficiencyTrend"></canvas></div>
+    </div>
 
     <div class="panel wide tall" id="panel-p5">
       <h3>BẢNG TỔNG HỢP VẬN HÀNH (Operating Summary)</h3>
@@ -271,7 +281,17 @@
       </h3>
       <div class="chart-wrap"><canvas id="chemTrend"></canvas></div>
     </div>
-    <div class="panel full" id="panel-p10"><h3>CHỈ SỐ CHẤT LƯỢNG NƯỚC RO THEO THÁNG (pH · TDS · Độ màu · Độ đục · ORP)</h3><div class="chart-wrap"><canvas id="effMonth"></canvas></div></div>
+    <div class="panel full" id="panel-p10">
+      <h3>CHỈ SỐ CHẤT LƯỢNG NƯỚC RO (pH · TDS · Độ màu · Độ đục · ORP)
+        <select id="qualityViewMode" onchange="renderWaterQualityTrend()" style="background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:10px;padding:3px 6px;">
+          <option value="ca">Theo ca</option>
+          <option value="ngay">Theo ngày</option>
+          <option value="tuan">Theo tuần</option>
+          <option value="thang" selected>Theo tháng</option>
+        </select>
+      </h3>
+      <div class="chart-wrap"><canvas id="effMonth"></canvas></div>
+    </div>
     <div class="panel" id="panel-p11">
       <h3>RECOVERY THỰC TẾ vs MỤC TIÊU (YTD)</h3>
       <div class="chart-wrap"><canvas id="gauge"></canvas></div>
@@ -711,19 +731,80 @@ function renderFlowChart(){
   });
 }
 
+/* ================= GENERIC TIME-BUCKET HELPERS (dùng chung cho nhiều biểu đồ) ================= */
+function getTimeBuckets(mode){
+  const entries = lastData.dailyEntries||[];
+  if(entries.length===0) return { labels:['Chưa có báo cáo ca nào'], groups:{'Chưa có báo cáo ca nào':[]} };
+  let labels = []; const groups = {};
+  if(mode==='ca'){
+    let latestDate=null;
+    entries.forEach(e=>{ const dt=parseDateSmart(e.date); if(dt && (!latestDate||dt>latestDate)) latestDate=dt; });
+    labels = ['07:00–19:00 (Ca ngày)','19:00–07:00 (Ca tối)'];
+    labels.forEach(l=>groups[l]=[]);
+    entries.forEach(e=>{
+      const dt = parseDateSmart(e.date);
+      if(!dt || !latestDate || dt.getTime()!==latestDate.getTime()) return;
+      const key = (e.shift||'').indexOf('tối')>-1 ? labels[1] : labels[0];
+      groups[key].push(e);
+    });
+  } else if(mode==='ngay'){
+    const monday = getMondayOfWeek(new Date());
+    const dayNames = ['Thứ 2','Thứ 3','Thứ 4','Thứ 5','Thứ 6','Thứ 7'];
+    labels = dayNames.map((n,i)=>{ const d=new Date(monday); d.setDate(monday.getDate()+i); return `${n} (${dateLabel(d)})`; });
+    labels.forEach(l=>groups[l]=[]);
+    entries.forEach(e=>{
+      const dt = parseDateSmart(e.date);
+      if(!dt) return;
+      const diffDays = Math.floor((dt-monday)/86400000);
+      if(diffDays<0 || diffDays>5) return;
+      groups[labels[diffDays]].push(e);
+    });
+  } else { // tuan
+    entries.forEach(e=>{
+      const dt = parseDateSmart(e.date);
+      if(!dt) return;
+      const key = isoWeekLabel(dt);
+      if(labels.indexOf(key)===-1) labels.push(key);
+      if(!groups[key]) groups[key]=[];
+      groups[key].push(e);
+    });
+    labels.sort();
+    if(labels.length>8) labels = labels.slice(-8);
+  }
+  return { labels, groups };
+}
+function sumField(entries, field){ return entries.reduce((a,e)=>a+Number(e[field]||0),0); }
+function avgField(entries, field){
+  const vals = entries.map(e=>Number(e[field]||0)).filter(v=>!isNaN(v) && v!==0);
+  if(vals.length===0) return 0;
+  return vals.reduce((a,b)=>a+b,0)/vals.length;
+}
+
 function renderEfficiencyTrend(){
   if(!lastData) return;
-  const months = (lastData.monthlyTrend||[]).map(r=>r.month);
-  const roRecovery = (lastData.monthlyTrend||[]).map(r=>Number(r.recovery_pct||0));
-  const ufRecovery = months.map(()=> 100-DEFAULT_UF_REJECT_PCT);
+  const mode = document.getElementById('recoveryViewMode')?.value || 'thang';
+  let labels, roRecovery;
+  if(mode==='thang'){
+    labels = (lastData.monthlyTrend||[]).map(r=>r.month);
+    roRecovery = (lastData.monthlyTrend||[]).map(r=>Number(r.recovery_pct||0));
+  } else {
+    const b = getTimeBuckets(mode);
+    labels = b.labels;
+    roRecovery = labels.map(l=>{
+      const g = b.groups[l]||[];
+      const inf = sumField(g,'influent_m3'); const ro = sumField(g,'ro_permeate_m3');
+      return inf>0 ? (ro/inf*100) : 0;
+    });
+  }
+  const ufRecovery = labels.map(()=> 100-DEFAULT_UF_REJECT_PCT);
   if(charts.efficiencyTrend) charts.efficiencyTrend.destroy();
   charts.efficiencyTrend = new Chart(document.getElementById('efficiencyTrend'), {
     type:'line',
-    data:{labels:months, datasets:[
+    data:{labels, datasets:[
       {label:'RO Recovery (%)', data:roRecovery, borderColor:'#f5811f', backgroundColor:'rgba(245,129,31,.15)', fill:true, tension:.35, pointRadius:3},
       {label:'UF Recovery (%)', data:ufRecovery, borderColor:'#4fc3f7', backgroundColor:'transparent', borderDash:[5,4], tension:0, pointRadius:2}
     ]},
-    options:{responsive:true,maintainAspectRatio:false, plugins:{legend:{position:'bottom',labels:{boxWidth:8,boxHeight:8,padding:8,font:{size:9.5}}}}, scales:{y:{grid:{color:'#26262a'}}, x:{grid:{display:false}}}}
+    options:{responsive:true,maintainAspectRatio:false, plugins:{legend:{position:'bottom',labels:{boxWidth:8,boxHeight:8,padding:8,font:{size:9.5}}}}, scales:{y:{grid:{color:'#26262a'}}, x:{grid:{display:false},ticks:{font:{size:8.5}}}}}
   });
 }
 
@@ -860,25 +941,49 @@ function renderChemByMode(){
 /* ================= CHỈ SỐ CHẤT LƯỢNG NƯỚC RO: pH, TDS, Màu, Đục, ORP theo tháng ================= */
 function renderWaterQualityTrend(){
   if(!lastData) return;
-  const months = (lastData.monthlyTrend||[]).map(r=>r.month);
-  const mt = lastData.monthlyTrend||[];
+  const mode = document.getElementById('qualityViewMode')?.value || 'thang';
+  let labels, ph, tds, color, orp, turbidity, hasTurbidity;
+
+  if(mode==='thang'){
+    const mt = lastData.monthlyTrend||[];
+    labels = mt.map(r=>r.month);
+    ph = mt.map(r=>Number(r.ph_ro||0));
+    tds = mt.map(r=>Number(r.tds_ro||0));
+    color = mt.map(r=>Number(r.color_ro||0));
+    turbidity = mt.map(r=>Number(r.turbidity_ro||0));
+    orp = mt.map(r=>Number(r.orp_ro||0));
+    hasTurbidity = true;
+  } else {
+    const b = getTimeBuckets(mode);
+    labels = b.labels;
+    ph = labels.map(l=>avgField(b.groups[l]||[], 'ph_ro'));
+    tds = labels.map(l=>avgField(b.groups[l]||[], 'tds_ro'));
+    color = labels.map(l=>avgField(b.groups[l]||[], 'color_ro'));
+    orp = labels.map(l=>avgField(b.groups[l]||[], 'orp_ro'));
+    turbidity = []; hasTurbidity = false; // độ đục chưa có ô nhập trong báo cáo ca hằng ngày
+  }
+
+  const datasets = [
+    {label:'pH RO', data:ph, borderColor:'#f5811f', yAxisID:'y', tension:.35, pointRadius:3},
+    {label:'TDS RO (ppm)', data:tds, borderColor:'#f5f5f5', yAxisID:'y1', tension:.35, pointRadius:3},
+    {label:'Độ màu RO (Pt-Co)', data:color, borderColor:'#9aa0a6', yAxisID:'y1', tension:.35, pointRadius:3, borderDash:[4,3]},
+    {label:'ORP RO (mV)', data:orp, borderColor:'#b388ff', yAxisID:'y2', tension:.35, pointRadius:3}
+  ];
+  if(hasTurbidity){
+    datasets.splice(3,0,{label:'Độ đục RO (NTU)', data:turbidity, borderColor:'#4fc3f7', yAxisID:'y1', tension:.35, pointRadius:3, borderDash:[2,2]});
+  }
+
   if(charts.effMonth) charts.effMonth.destroy();
   charts.effMonth = new Chart(document.getElementById('effMonth'), {
     type:'line',
-    data:{labels:months, datasets:[
-      {label:'pH RO', data:mt.map(r=>Number(r.ph_ro||0)), borderColor:'#f5811f', yAxisID:'y', tension:.35, pointRadius:3},
-      {label:'TDS RO (ppm)', data:mt.map(r=>Number(r.tds_ro||0)), borderColor:'#f5f5f5', yAxisID:'y1', tension:.35, pointRadius:3},
-      {label:'Độ màu RO (Pt-Co)', data:mt.map(r=>Number(r.color_ro||0)), borderColor:'#9aa0a6', yAxisID:'y1', tension:.35, pointRadius:3, borderDash:[4,3]},
-      {label:'Độ đục RO (NTU)', data:mt.map(r=>Number(r.turbidity_ro||0)), borderColor:'#4fc3f7', yAxisID:'y1', tension:.35, pointRadius:3, borderDash:[2,2]},
-      {label:'ORP RO (mV)', data:mt.map(r=>Number(r.orp_ro||0)), borderColor:'#b388ff', yAxisID:'y2', tension:.35, pointRadius:3}
-    ]},
+    data:{labels, datasets},
     options:{responsive:true,maintainAspectRatio:false,
       plugins:{legend:{position:'bottom',labels:{boxWidth:8,boxHeight:8,padding:8,font:{size:9.5}}}},
       scales:{
         y:{position:'left',min:0,max:14,grid:{color:'#26262a'},title:{display:true,text:'pH',color:'#9aa0a6',font:{size:9}}},
         y1:{position:'right',grid:{display:false},title:{display:true,text:'TDS / Màu / Đục',color:'#9aa0a6',font:{size:9}}},
         y2:{display:false},
-        x:{grid:{display:false}}
+        x:{grid:{display:false},ticks:{font:{size:8.5}}}
       }}
   });
 }
