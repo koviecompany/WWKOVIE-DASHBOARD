@@ -85,6 +85,7 @@
   .page-grid{display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:12px;margin-bottom:12px;}
   .panel{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px;display:flex;flex-direction:column;min-height:260px;}
   .panel.wide{grid-column:span 2;}
+  .panel.full{grid-column:1/-1;}
   .panel.tall{min-height:340px;}
   .panel h3{margin:0 0 10px;font-size:11.5px;letter-spacing:.5px;color:var(--orange);display:flex;align-items:center;justify-content:space-between;font-weight:800;}
   .chart-wrap{position:relative;flex:1;min-height:180px;}
@@ -225,23 +226,49 @@
 
   <!-- Hidden store holding all panels; moved into #pageContent depending on selected page -->
   <div id="panelStore">
-    <div class="panel" id="panel-p1"><h3>LƯU LƯỢNG ĐẦU VÀO & NƯỚC SẠCH RO</h3><div class="chart-wrap"><canvas id="flowTrend"></canvas></div></div>
+    <div class="panel wide" id="panel-p1">
+      <h3>LƯU LƯỢNG ĐẦU VÀO — UF & RO
+        <span style="display:flex;gap:8px;align-items:center;font-size:9.5px;color:var(--gray);font-weight:600;flex-wrap:wrap;">
+          %UF đầu vào <input type="number" id="ufInputPct" value="95" min="0" max="100" onchange="onUFSettingsChange()" style="width:44px;background:var(--panel2);border:1px solid var(--border);border-radius:4px;color:var(--white);padding:2px 4px;">
+          %Reject UF <input type="number" id="ufRejectPct" value="10" min="0" max="100" onchange="onUFSettingsChange()" style="width:44px;background:var(--panel2);border:1px solid var(--border);border-radius:4px;color:var(--white);padding:2px 4px;">
+        </span>
+      </h3>
+      <div class="chart-wrap"><canvas id="flowTrend"></canvas></div>
+    </div>
     <div class="panel" id="panel-p2"><h3>THÀNH PHẦN NƯỚC THẢI ĐẦU VÀO</h3>
       <div class="chart-wrap"><canvas id="influentDonut"></canvas><div class="donut-center" id="influentCenter"><b>—</b><span>Tổng lưu lượng</span></div></div>
       <div class="legend" id="legend1"></div>
     </div>
-    <div class="panel" id="panel-p4"><h3>XU HƯỚNG TỶ LỆ RECOVERY (%)</h3><div class="chart-wrap"><canvas id="efficiencyTrend"></canvas></div></div>
+    <div class="panel" id="panel-p4"><h3>XU HƯỚNG TỶ LỆ RECOVERY — RO & UF (%)</h3><div class="chart-wrap"><canvas id="efficiencyTrend"></canvas></div></div>
 
     <div class="panel wide tall" id="panel-p5">
       <h3>BẢNG TỔNG HỢP VẬN HÀNH (Operating Summary)</h3>
       <div style="overflow-x:auto;"><table><thead><tr><th>Chỉ tiêu</th><th>Kỳ này</th><th>Kỳ trước</th><th>Chênh lệch</th><th>%</th></tr></thead><tbody id="summaryBody"></tbody></table></div>
     </div>
-    <div class="panel" id="panel-p6"><h3>ĐÓNG GÓP LƯU LƯỢNG THEO HỆ RO</h3><div id="lineContribution"></div></div>
+    <div class="panel" id="panel-p6"><h3>ĐÓNG GÓP LƯU LƯỢNG THEO HỆ UF / RO</h3><div id="lineContribution"></div></div>
     <div class="panel" id="panel-p7"><h3>CHÊNH LỆCH CHI PHÍ HÓA CHẤT (so với kỳ trước)</h3><div class="chart-wrap"><canvas id="waterfall"></canvas></div></div>
 
-    <div class="panel" id="panel-p8"><h3>LƯU LƯỢNG ĐẦU VÀO THEO THÁNG (m³)</h3><div class="chart-wrap"><canvas id="volMonth"></canvas></div></div>
-    <div class="panel" id="panel-p9"><h3>TỔNG HÓA CHẤT SỬ DỤNG THEO THÁNG (lít)</h3><div class="chart-wrap"><canvas id="chemTrend"></canvas></div></div>
-    <div class="panel" id="panel-p10"><h3>pH RO THEO THÁNG</h3><div class="chart-wrap"><canvas id="effMonth"></canvas></div></div>
+    <div class="panel" id="panel-p8">
+      <h3>LƯU LƯỢNG ĐẦU VÀO
+        <select id="volViewMode" onchange="renderVolMonth()" style="background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:10px;padding:3px 6px;">
+          <option value="thang">Theo tháng</option>
+          <option value="tuan">Theo tuần</option>
+        </select>
+      </h3>
+      <div class="chart-wrap"><canvas id="volMonth"></canvas></div>
+    </div>
+    <div class="panel" id="panel-p9">
+      <h3>TỔNG HÓA CHẤT SỬ DỤNG
+        <select id="chemViewMode" onchange="renderChemByMode()" style="background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:10px;padding:3px 6px;">
+          <option value="ca">Theo ca</option>
+          <option value="ngay">Theo ngày</option>
+          <option value="tuan">Theo tuần</option>
+          <option value="thang" selected>Theo tháng</option>
+        </select>
+      </h3>
+      <div class="chart-wrap"><canvas id="chemTrend"></canvas></div>
+    </div>
+    <div class="panel full" id="panel-p10"><h3>CHỈ SỐ CHẤT LƯỢNG NƯỚC RO THEO THÁNG (pH · TDS · Độ màu · Độ đục · ORP)</h3><div class="chart-wrap"><canvas id="effMonth"></canvas></div></div>
     <div class="panel" id="panel-p11">
       <h3>RECOVERY THỰC TẾ vs MỤC TIÊU (YTD)</h3>
       <div class="chart-wrap"><canvas id="gauge"></canvas></div>
@@ -286,7 +313,8 @@
           <div><label>NaOH 10%</label><input type="number" id="ef_naoh"></div>
           <div><label>Javen 10%</label><input type="number" id="ef_javen"></div>
           <div><label>HCl 10%</label><input type="number" id="ef_hcl"></div>
-          <div><label>Citric Acid 5%</label><input type="number" id="ef_citric"></div>
+          <div><label>Citric Acid</label><input type="number" id="ef_citric"></div>
+          <div><label>Genesys LS (chống cáu cặn)</label><input type="number" id="ef_genesys"></div>
         </div>
 
         <h4>Công việc phải làm trong ca</h4>
@@ -363,7 +391,7 @@ function onViewModeChange(){
 const ALL_PANEL_IDS = ['p1','p2','p4','p5','p6','p7','p8','p9','p10','p11','pChemUsage','pChemInventory','pChemStockIn','pAlerts','pSettings','pDataEntry'];
 const PAGE_ICON = {overview:'🏠',nhap_lieu:'📝',baocao_vanhanh:'📊',luu_luong:'💧',hoa_chat:'🧴',chat_luong:'🧪',xu_huong:'📈',ke_hoach:'🎯',chenh_lech:'🔀',baocao:'📄',canh_bao:'🔔',cai_dat:'⚡'};
 const PAGES = {
-  overview:       ['p1','p2','p4','p5','p6','p7','p8','p9','p10','p11'],
+  overview:       ['p1','p4','p5','p6','p8','p9','p10'],
   nhap_lieu:      ['pDataEntry'],
   baocao_vanhanh: ['p5','p8','p11'],
   luu_luong:      ['p1','p8','p6','p2'],
@@ -465,7 +493,7 @@ function collectTasksDone(){
 }
 
 function clearEntryForm(){
-  ['ef_influent','ef_ro','ef_pumpyy','ef_ph','ef_tds','ef_orp','ef_color','ef_pac','ef_polymer','ef_naoh','ef_javen','ef_hcl','ef_citric'].forEach(id=>{
+  ['ef_influent','ef_ro','ef_pumpyy','ef_ph','ef_tds','ef_orp','ef_color','ef_pac','ef_polymer','ef_naoh','ef_javen','ef_hcl','ef_citric','ef_genesys'].forEach(id=>{
     document.getElementById(id).value = '';
   });
   document.getElementById('ef_notes').value = '';
@@ -494,6 +522,7 @@ async function saveEntry(){
     chem_javen: document.getElementById('ef_javen').value,
     chem_hcl: document.getElementById('ef_hcl').value,
     chem_citric: document.getElementById('ef_citric').value,
+    chem_genesys: document.getElementById('ef_genesys').value,
     tasks_done: collectTasksDone(),
     notes: document.getElementById('ef_notes').value
   };
@@ -573,6 +602,190 @@ function renderSettings(){
   document.getElementById('settingsList').innerHTML = rows.map(r=>`<div class="settings-row"><span>${r[0]}</span><b>${r[1]}</b></div>`).join('');
 }
 
+/* ================= DATE / AGGREGATION HELPERS ================= */
+function parseDateSmart(s){
+  if(!s) return null;
+  s = String(s).trim();
+  let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(m) return new Date(+m[1], +m[2]-1, +m[3]);
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if(m) return new Date(+m[3], +m[2]-1, +m[1]);
+  const d = new Date(s);
+  return isNaN(d) ? null : d;
+}
+function isoWeekLabel(date){
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+  const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1)/7);
+  return `Tuần ${weekNo}/${d.getUTCFullYear()}`;
+}
+function monthLabel(date){ return `T${date.getMonth()+1}/${String(date.getFullYear()).slice(2)}`; }
+function dateLabel(date){ return `${String(date.getDate()).padStart(2,'0')}/${String(date.getMonth()+1).padStart(2,'0')}`; }
+
+/* ================= UF/RO FLOW MODEL (dựa trên %UF, %Reject UF tự cài) ================= */
+function computeUFROSeries(monthlyTrend){
+  const ufInputPct = Number(document.getElementById('ufInputPct')?.value || 95);
+  const ufRejectPct = Number(document.getElementById('ufRejectPct')?.value || 10);
+  const influent = monthlyTrend.map(r=>Number(r.influent_m3||0));
+  const roPermeate = monthlyTrend.map(r=>Number(r.ro_permeate_m3||0));
+  const ufInput = influent.map(v=>v*ufInputPct/100);
+  const ufReject = ufInput.map(v=>v*ufRejectPct/100);
+  const roInput = ufInput.map((v,i)=>v-ufReject[i]);
+  const roReject = roInput.map((v,i)=>Math.max(0, v-roPermeate[i]));
+  return {influent, ufInput, ufReject, roInput, roReject, roPermeate, ufInputPct, ufRejectPct};
+}
+
+function onUFSettingsChange(){ recomputeFlowChart(); renderEfficiencyTrend(); }
+
+function recomputeFlowChart(){
+  if(!lastData) return;
+  const months = (lastData.monthlyTrend||[]).map(r=>r.month);
+  const s = computeUFROSeries(lastData.monthlyTrend||[]);
+  if(charts.flowTrend) charts.flowTrend.destroy();
+  charts.flowTrend = new Chart(document.getElementById('flowTrend'), {
+    type:'line',
+    data:{labels:months, datasets:[
+      {label:'Nước thải đầu vào', data:s.influent, borderColor:'#f5811f', backgroundColor:'#f5811f', tension:.35, pointRadius:3},
+      {label:'UF đầu vào', data:s.ufInput, borderColor:'#4fc3f7', backgroundColor:'#4fc3f7', tension:.35, pointRadius:3},
+      {label:'UF Reject', data:s.ufReject, borderColor:'#e5484d', backgroundColor:'#e5484d', tension:.35, pointRadius:3, borderDash:[4,3]},
+      {label:'RO đầu vào', data:s.roInput, borderColor:'#f5f5f5', backgroundColor:'#f5f5f5', tension:.35, pointRadius:3},
+      {label:'RO Reject', data:s.roReject, borderColor:'#b388ff', backgroundColor:'#b388ff', tension:.35, pointRadius:3, borderDash:[4,3]}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'bottom',labels:{boxWidth:8,boxHeight:8,padding:8,font:{size:9.5}}}},
+      scales:{y:{grid:{color:'#26262a'},ticks:{callback:v=>(v/1000).toFixed(1)+'K'}}, x:{grid:{display:false}}}}
+  });
+}
+
+function renderEfficiencyTrend(){
+  if(!lastData) return;
+  const months = (lastData.monthlyTrend||[]).map(r=>r.month);
+  const roRecovery = (lastData.monthlyTrend||[]).map(r=>Number(r.recovery_pct||0));
+  const ufRejectPct = Number(document.getElementById('ufRejectPct')?.value || 10);
+  const ufRecovery = months.map(()=> 100-ufRejectPct);
+  if(charts.efficiencyTrend) charts.efficiencyTrend.destroy();
+  charts.efficiencyTrend = new Chart(document.getElementById('efficiencyTrend'), {
+    type:'line',
+    data:{labels:months, datasets:[
+      {label:'RO Recovery (%)', data:roRecovery, borderColor:'#f5811f', backgroundColor:'rgba(245,129,31,.15)', fill:true, tension:.35, pointRadius:3},
+      {label:'UF Recovery (%)', data:ufRecovery, borderColor:'#4fc3f7', backgroundColor:'transparent', borderDash:[5,4], tension:0, pointRadius:2}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false, plugins:{legend:{position:'bottom',labels:{boxWidth:8,boxHeight:8,padding:8,font:{size:9.5}}}}, scales:{y:{grid:{color:'#26262a'}}, x:{grid:{display:false}}}}
+  });
+}
+
+/* ================= LƯU LƯỢNG ĐẦU VÀO: Theo tuần / Theo tháng ================= */
+function renderVolMonth(){
+  if(!lastData) return;
+  const mode = document.getElementById('volViewMode')?.value || 'thang';
+  let labels, values;
+  if(mode==='tuan'){
+    const buckets = {};
+    (lastData.dailyEntries||[]).forEach(e=>{
+      const dt = parseDateSmart(e.date);
+      if(!dt) return;
+      const key = isoWeekLabel(dt);
+      buckets[key] = (buckets[key]||0) + Number(e.influent_m3||0);
+    });
+    labels = Object.keys(buckets);
+    values = labels.map(k=>buckets[k]);
+    if(labels.length===0){ labels=['Chưa có dữ liệu ca']; values=[0]; }
+  } else {
+    labels = (lastData.monthlyTrend||[]).map(r=>r.month);
+    values = (lastData.monthlyTrend||[]).map(r=>Number(r.influent_m3||0));
+  }
+  if(charts.volMonth) charts.volMonth.destroy();
+  charts.volMonth = new Chart(document.getElementById('volMonth'), {
+    type:'bar', data:{labels, datasets:[{data:values, backgroundColor:'#f5811f', borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}, scales:{y:{grid:{color:'#26262a'},ticks:{callback:v=>(v/1000).toFixed(1)+'K'}}, x:{grid:{display:false},ticks:{font:{size:9}}}}}
+  });
+}
+
+/* ================= TỔNG HÓA CHẤT: Theo ca / ngày / tuần / tháng ================= */
+const CHEM_FIELDS = [
+  {key:'chem_pac', label:'PAC', color:'#f5811f'},
+  {key:'chem_polymer', label:'PAM', color:'#4fc3f7'},
+  {key:'chem_naoh', label:'NaOH', color:'#3ecf8e'},
+  {key:'chem_javen', label:'NaOCl', color:'#e5484d'},
+  {key:'chem_hcl', label:'HCl', color:'#b388ff'},
+  {key:'chem_citric', label:'Citric Acid', color:'#d9d9d9'},
+  {key:'chem_genesys', label:'Genesys LS', color:'#ffb066'}
+];
+
+function renderChemByMode(){
+  if(!lastData) return;
+  const mode = document.getElementById('chemViewMode')?.value || 'thang';
+  const entries = lastData.dailyEntries || [];
+
+  if(entries.length===0){
+    const labels = (lastData.monthlyTrend||[]).map(r=>r.month);
+    const totals = (lastData.monthlyTrend||[]).map(r=>Number(r.chemical_total_l||0));
+    if(charts.chemTrend) charts.chemTrend.destroy();
+    charts.chemTrend = new Chart(document.getElementById('chemTrend'), {
+      type:'line', data:{labels, datasets:[{label:'Tổng hóa chất (lít)', data:totals, borderColor:'#f5811f', backgroundColor:'rgba(245,129,31,.15)', fill:true, tension:.35, pointRadius:3}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}, scales:{y:{grid:{color:'#26262a'}}, x:{grid:{display:false}}}}
+    });
+    return;
+  }
+
+  let labels = [];
+  const bucketsByChem = {};
+  CHEM_FIELDS.forEach(c=>bucketsByChem[c.key]={});
+
+  entries.forEach(e=>{
+    const dt = parseDateSmart(e.date);
+    if(!dt) return;
+    let key;
+    if(mode==='ca') key = `${dateLabel(dt)} - ${e.shift||''}`;
+    else if(mode==='ngay') key = dateLabel(dt);
+    else if(mode==='tuan') key = isoWeekLabel(dt);
+    else key = monthLabel(dt);
+    if(labels.indexOf(key)===-1) labels.push(key);
+    CHEM_FIELDS.forEach(c=>{ bucketsByChem[c.key][key] = (bucketsByChem[c.key][key]||0) + Number(e[c.key]||0); });
+  });
+  if(labels.length>12) labels = labels.slice(-12);
+
+  const datasets = CHEM_FIELDS.map(c=>({
+    label:c.label, data:labels.map(l=>bucketsByChem[c.key][l]||0), backgroundColor:c.color, borderRadius:3
+  }));
+
+  if(charts.chemTrend) charts.chemTrend.destroy();
+  charts.chemTrend = new Chart(document.getElementById('chemTrend'), {
+    type:'bar', data:{labels, datasets},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'bottom',labels:{boxWidth:8,boxHeight:8,padding:6,font:{size:8.5}}}},
+      scales:{y:{grid:{color:'#26262a'}}, x:{grid:{display:false},ticks:{font:{size:8.5}}}}}
+  });
+}
+
+/* ================= CHỈ SỐ CHẤT LƯỢNG NƯỚC RO: pH, TDS, Màu, Đục, ORP theo tháng ================= */
+function renderWaterQualityTrend(){
+  if(!lastData) return;
+  const months = (lastData.monthlyTrend||[]).map(r=>r.month);
+  const mt = lastData.monthlyTrend||[];
+  if(charts.effMonth) charts.effMonth.destroy();
+  charts.effMonth = new Chart(document.getElementById('effMonth'), {
+    type:'line',
+    data:{labels:months, datasets:[
+      {label:'pH RO', data:mt.map(r=>Number(r.ph_ro||0)), borderColor:'#f5811f', yAxisID:'y', tension:.35, pointRadius:3},
+      {label:'TDS RO (ppm)', data:mt.map(r=>Number(r.tds_ro||0)), borderColor:'#f5f5f5', yAxisID:'y1', tension:.35, pointRadius:3},
+      {label:'Độ màu RO (Pt-Co)', data:mt.map(r=>Number(r.color_ro||0)), borderColor:'#9aa0a6', yAxisID:'y1', tension:.35, pointRadius:3, borderDash:[4,3]},
+      {label:'Độ đục RO (NTU)', data:mt.map(r=>Number(r.turbidity_ro||0)), borderColor:'#4fc3f7', yAxisID:'y1', tension:.35, pointRadius:3, borderDash:[2,2]},
+      {label:'ORP RO (mV)', data:mt.map(r=>Number(r.orp_ro||0)), borderColor:'#b388ff', yAxisID:'y2', tension:.35, pointRadius:3}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'bottom',labels:{boxWidth:8,boxHeight:8,padding:8,font:{size:9.5}}}},
+      scales:{
+        y:{position:'left',min:0,max:14,grid:{color:'#26262a'},title:{display:true,text:'pH',color:'#9aa0a6',font:{size:9}}},
+        y1:{position:'right',grid:{display:false},title:{display:true,text:'TDS / Màu / Đục',color:'#9aa0a6',font:{size:9}}},
+        y2:{display:false},
+        x:{grid:{display:false}}
+      }}
+  });
+}
+
 /* ================= RENDER DASHBOARD ================= */
 function renderDashboard(d){
   lastData = d;
@@ -593,16 +806,7 @@ function renderDashboard(d){
   const months = (d.monthlyTrend||[]).map(r=>r.month);
   const orange='#f5811f', white='#f5f5f5', gray='#6b7077', green='#3ecf8e', grid='#26262a';
 
-  charts.flowTrend = new Chart(document.getElementById('flowTrend'), {
-    type:'line',
-    data:{labels:months, datasets:[
-      {label:'Nước thải đầu vào (m³)', data:(d.monthlyTrend||[]).map(r=>r.influent_m3), borderColor:orange, backgroundColor:orange, yAxisID:'y', tension:.35, pointRadius:3},
-      {label:'Nước sạch RO (m³)', data:(d.monthlyTrend||[]).map(r=>r.ro_permeate_m3), borderColor:white, backgroundColor:white, yAxisID:'y', tension:.35, pointRadius:3, borderDash:[4,3]}
-    ]},
-    options:{responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{position:'bottom',labels:{boxWidth:8,boxHeight:8,padding:10}}},
-      scales:{y:{grid:{color:grid},ticks:{callback:v=>(v/1000)+'K'}}, x:{grid:{display:false}}}}
-  });
+  recomputeFlowChart();
 
   const inf = d.influent||[];
   const infColors = ['#f5811f','#d9d9d9','#8a8a8a','#4a4a4a','#c96f1a'];
@@ -615,11 +819,7 @@ function renderDashboard(d){
   const totalFlow = d.kpis && d.kpis.find(k=>k.id==='influent');
   document.getElementById('influentCenter').innerHTML = `<b>${totalFlow?totalFlow.value:'—'}</b><span>Tổng lưu lượng</span>`;
 
-  charts.efficiencyTrend = new Chart(document.getElementById('efficiencyTrend'), {
-    type:'line',
-    data:{labels:months, datasets:[{label:'Recovery (%)', data:(d.monthlyTrend||[]).map(r=>r.recovery_pct), borderColor:orange, backgroundColor:'rgba(245,129,31,.15)', fill:true, tension:.35, pointRadius:3}]},
-    options:{responsive:true,maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{grid:{color:grid}}, x:{grid:{display:false}}}}
-  });
+  renderEfficiencyTrend();
 
   document.getElementById('summaryBody').innerHTML = (d.operatingSummary||[]).map(r=>{
     const cls = r.row_type==='total'?'total':(r.row_type==='sub'?'sub':'');
@@ -643,20 +843,9 @@ function renderDashboard(d){
       scales:{y:{grid:{color:grid},ticks:{callback:v=>v}}, x:{grid:{display:false},ticks:{font:{size:9}}}}}
   });
 
-  charts.volMonth = new Chart(document.getElementById('volMonth'), {
-    type:'bar', data:{labels:months, datasets:[{data:(d.monthlyTrend||[]).map(r=>r.influent_m3), backgroundColor:orange, borderRadius:4}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}, scales:{y:{grid:{color:grid},ticks:{callback:v=>(v/1000)+'K'}}, x:{grid:{display:false}}}}
-  });
-
-  charts.chemTrend = new Chart(document.getElementById('chemTrend'), {
-    type:'line', data:{labels:months, datasets:[{data:(d.monthlyTrend||[]).map(r=>r.chemical_total_l), borderColor:orange, backgroundColor:'rgba(245,129,31,.15)', fill:true, tension:.35, pointRadius:3}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}, scales:{y:{grid:{color:grid}}, x:{grid:{display:false}}}}
-  });
-
-  charts.effMonth = new Chart(document.getElementById('effMonth'), {
-    type:'line', data:{labels:months, datasets:[{data:(d.monthlyTrend||[]).map(r=>r.ph_ro), borderColor:orange, backgroundColor:orange, tension:.35, pointRadius:3}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}, scales:{y:{grid:{color:grid}}, x:{grid:{display:false}}}}
-  });
+  renderVolMonth();
+  renderChemByMode();
+  renderWaterQualityTrend();
 
   const compliance = (d.compliance||[])[0] || {actual:0, target:0};
   charts.gauge = new Chart(document.getElementById('gauge'), {
@@ -715,11 +904,11 @@ const DEMO_DATA = {
     {id:'color', label:'ĐỘ MÀU RO', icon:'🎨', value:'12 Pt-Co', delta:'▲ 0.8%', delta_type:'up', subtext:'so với hôm qua'}
   ],
   monthlyTrend:[
-    {month:'T3/26', influent_m3:1720, ro_permeate_m3:1120, recovery_pct:65.1, ph_ro:6.5, chemical_total_l:390},
-    {month:'T4/26', influent_m3:1780, ro_permeate_m3:1160, recovery_pct:65.6, ph_ro:6.6, chemical_total_l:405},
-    {month:'T5/26', influent_m3:1810, ro_permeate_m3:1190, recovery_pct:65.9, ph_ro:6.7, chemical_total_l:412},
-    {month:'T6/26', influent_m3:1840, ro_permeate_m3:1215, recovery_pct:66.3, ph_ro:6.7, chemical_total_l:418},
-    {month:'T7/26', influent_m3:1860, ro_permeate_m3:1240, recovery_pct:66.7, ph_ro:6.8, chemical_total_l:425}
+    {month:'T3/26', influent_m3:1720, ro_permeate_m3:1120, recovery_pct:65.1, ph_ro:6.5, tds_ro:61, orp_ro:238, color_ro:15, turbidity_ro:6.2, chemical_total_l:390},
+    {month:'T4/26', influent_m3:1780, ro_permeate_m3:1160, recovery_pct:65.6, ph_ro:6.6, tds_ro:60, orp_ro:240, color_ro:14, turbidity_ro:5.8, chemical_total_l:405},
+    {month:'T5/26', influent_m3:1810, ro_permeate_m3:1190, recovery_pct:65.9, ph_ro:6.7, tds_ro:59, orp_ro:241, color_ro:13, turbidity_ro:5.3, chemical_total_l:412},
+    {month:'T6/26', influent_m3:1840, ro_permeate_m3:1215, recovery_pct:66.3, ph_ro:6.7, tds_ro:58, orp_ro:243, color_ro:12, turbidity_ro:4.9, chemical_total_l:418},
+    {month:'T7/26', influent_m3:1860, ro_permeate_m3:1240, recovery_pct:66.7, ph_ro:6.8, tds_ro:58, orp_ro:245, color_ro:12, turbidity_ro:4.6, chemical_total_l:425}
   ],
   influent:[{category:'Nước nhuộm',percent:52},{category:'Nước giặt',percent:28},{category:'Nước hồ (sizing)',percent:12},{category:'Khác',percent:8}],
   operatingSummary:[
@@ -731,9 +920,12 @@ const DEMO_DATA = {
     {parameter:'TDS RO (ppm, trung bình)', current:'58', previous:'57', variance:'1', variance_pct:'▲1.8%', row_type:'sub'},
     {parameter:'ORP RO (mV, trung bình)', current:'245', previous:'241', variance:'4', variance_pct:'▲1.7%', row_type:'sub'},
     {parameter:'Độ màu RO (Pt-Co)', current:'12', previous:'13', variance:'-1', variance_pct:'▼7.7%', row_type:'sub'},
+    {parameter:'Độ đục RO (NTU)', current:'4.6', previous:'4.9', variance:'-0.3', variance_pct:'▼6.1%', row_type:'sub'},
     {parameter:'Tổng hóa chất sử dụng (lít)', current:'425', previous:'418', variance:'7', variance_pct:'▲1.7%', row_type:'normal'}
   ],
   lineContribution:[
+    {line:'Hệ UF A', value_m3:940, percent:50.5},
+    {line:'Hệ UF B', value_m3:920, percent:49.5},
     {line:'Hệ RO A', value_m3:650, percent:52.4},
     {line:'Hệ RO B', value_m3:590, percent:47.6}
   ],
@@ -755,8 +947,10 @@ const DEMO_DATA = {
     {date:'23/07/2026',shift:'Ca tối',chemical:'Javen 10%',amount_used:35,unit:'lít'},
     {date:'23/07/2026',shift:'Ca ngày',chemical:'HCl 10%',amount_used:20,unit:'lít'},
     {date:'23/07/2026',shift:'Ca tối',chemical:'HCl 10%',amount_used:18,unit:'lít'},
-    {date:'23/07/2026',shift:'Ca ngày',chemical:'Citric Acid 5%',amount_used:15,unit:'lít'},
-    {date:'23/07/2026',shift:'Ca tối',chemical:'Citric Acid 5%',amount_used:12,unit:'lít'}
+    {date:'23/07/2026',shift:'Ca ngày',chemical:'Citric Acid',amount_used:15,unit:'lít'},
+    {date:'23/07/2026',shift:'Ca tối',chemical:'Citric Acid',amount_used:12,unit:'lít'},
+    {date:'23/07/2026',shift:'Ca ngày',chemical:'Genesys LS',amount_used:10,unit:'lít'},
+    {date:'23/07/2026',shift:'Ca tối',chemical:'Genesys LS',amount_used:9,unit:'lít'}
   ],
   chemicalInventory:[
     {chemical:'PAC 10%',current_stock:850,unit:'lít',min_threshold:300},
@@ -764,17 +958,35 @@ const DEMO_DATA = {
     {chemical:'NaOH 10%',current_stock:180,unit:'lít',min_threshold:200},
     {chemical:'Javen 10%',current_stock:260,unit:'lít',min_threshold:150},
     {chemical:'HCl 10%',current_stock:95,unit:'lít',min_threshold:100},
-    {chemical:'Citric Acid 5%',current_stock:140,unit:'lít',min_threshold:80}
+    {chemical:'Citric Acid',current_stock:140,unit:'lít',min_threshold:80},
+    {chemical:'Genesys LS',current_stock:110,unit:'lít',min_threshold:60}
   ],
   chemicalStockIn:[
     {date:'20/07/2026',chemical:'PAC 10%',quantity:500,unit:'lít',supplier:'Cty Hóa chất An Phát',note:''},
     {date:'18/07/2026',chemical:'NaOH 10%',quantity:200,unit:'lít',supplier:'Cty Hóa chất An Phát',note:''},
-    {date:'15/07/2026',chemical:'Citric Acid 5%',quantity:100,unit:'lít',supplier:'Cty TNHH Hóa Chất Miền Nam',note:''}
+    {date:'15/07/2026',chemical:'Citric Acid',quantity:100,unit:'lít',supplier:'Cty TNHH Hóa Chất Miền Nam',note:''},
+    {date:'12/07/2026',chemical:'Genesys LS',quantity:80,unit:'lít',supplier:'Cty TNHH Hóa Chất Miền Nam',note:''}
   ],
   dailyEntries:[
-    {timestamp:new Date().toISOString(), date:'23/07/2026', shift:'Ca ngày', username:'admin', fullname:'Dương Đại Long',
-     influent_m3:1860, ro_permeate_m3:1240, pump_to_yy_m3:1180, recovery_pct:66.7, ph_ro:6.8, tds_ro:58, orp_ro:245, color_ro:12,
-     chem_pac:125, chem_polymer:155, chem_naoh:60, chem_javen:40, chem_hcl:20, chem_citric:15,
+    {timestamp:'2026-07-21T07:00:00.000Z', date:'2026-07-21', shift:'Ca ngày', username:'admin', fullname:'Dương Đại Long',
+     influent_m3:600, ro_permeate_m3:400, pump_to_yy_m3:380, recovery_pct:66.1, ph_ro:6.7, tds_ro:59, orp_ro:242, color_ro:13,
+     chem_pac:60, chem_polymer:75, chem_naoh:28, chem_javen:18, chem_hcl:9, chem_citric:7, chem_genesys:6,
+     tasks_done:'Kiểm tra áp lực bơm RO', notes:''},
+    {timestamp:'2026-07-21T19:00:00.000Z', date:'2026-07-21', shift:'Ca tối', username:'vanhanh01', fullname:'Trần Thị B',
+     influent_m3:590, ro_permeate_m3:390, pump_to_yy_m3:375, recovery_pct:65.8, ph_ro:6.6, tds_ro:60, orp_ro:239, color_ro:14,
+     chem_pac:58, chem_polymer:72, chem_naoh:27, chem_javen:17, chem_hcl:9, chem_citric:6, chem_genesys:6,
+     tasks_done:'Vệ sinh lọc UF, Ghi chỉ số đồng hồ nước', notes:''},
+    {timestamp:'2026-07-22T07:00:00.000Z', date:'2026-07-22', shift:'Ca ngày', username:'admin', fullname:'Dương Đại Long',
+     influent_m3:615, ro_permeate_m3:410, pump_to_yy_m3:392, recovery_pct:66.4, ph_ro:6.7, tds_ro:58, orp_ro:244, color_ro:12,
+     chem_pac:62, chem_polymer:77, chem_naoh:29, chem_javen:19, chem_hcl:10, chem_citric:7, chem_genesys:6,
+     tasks_done:'Kiểm tra tồn kho hóa chất, Kiểm tra pH/TDS/ORP đầu ra', notes:''},
+    {timestamp:'2026-07-22T19:00:00.000Z', date:'2026-07-22', shift:'Ca tối', username:'kythuat01', fullname:'Lê Văn C',
+     influent_m3:605, ro_permeate_m3:405, pump_to_yy_m3:388, recovery_pct:66.9, ph_ro:6.8, tds_ro:58, orp_ro:246, color_ro:12,
+     chem_pac:63, chem_polymer:78, chem_naoh:30, chem_javen:19, chem_hcl:10, chem_citric:8, chem_genesys:6,
+     tasks_done:'Ghi chỉ số đồng hồ nước', notes:''},
+    {timestamp:'2026-07-23T07:00:00.000Z', date:'2026-07-23', shift:'Ca ngày', username:'admin', fullname:'Dương Đại Long',
+     influent_m3:645, ro_permeate_m3:430, pump_to_yy_m3:410, recovery_pct:66.7, ph_ro:6.8, tds_ro:58, orp_ro:245, color_ro:12,
+     chem_pac:65, chem_polymer:80, chem_naoh:31, chem_javen:21, chem_hcl:10, chem_citric:8, chem_genesys:6,
      tasks_done:'Kiểm tra áp lực bơm RO, Ghi chỉ số đồng hồ nước', notes:''}
   ]
 };
