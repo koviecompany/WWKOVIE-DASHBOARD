@@ -229,12 +229,18 @@
   <div id="panelStore">
     <div class="panel wide" id="panel-p1">
       <h3>LƯU LƯỢNG ĐẦU VÀO — UF & RO
-        <select id="flowViewMode" onchange="renderFlowChart()" style="background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:10px;padding:3px 6px;">
-          <option value="ca">Theo ca</option>
-          <option value="ngay">Theo ngày</option>
-          <option value="tuan">Theo tuần</option>
-          <option value="thang" selected>Theo tháng</option>
-        </select>
+        <span style="display:flex;gap:6px;align-items:center;">
+          <select id="flowViewMode" onchange="onFlowViewModeChange()" style="background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:10px;padding:3px 6px;">
+            <option value="ca">Theo ca</option>
+            <option value="ngay">Theo ngày</option>
+            <option value="tuan">Theo tuần</option>
+            <option value="thang" selected>Theo tháng</option>
+          </select>
+          <select id="flowCaSelect" onchange="renderFlowChart()" style="display:none;background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:10px;padding:3px 6px;">
+            <option value="ngay">Ca ngày (07h–19h)</option>
+            <option value="toi">Ca tối (19h–07h)</option>
+          </select>
+        </span>
       </h3>
       <div class="chart-wrap"><canvas id="flowTrend"></canvas></div>
     </div>
@@ -666,29 +672,37 @@ function getFlowBuckets(mode){
   let labels = []; const infBucket = {}; const roBucket = {};
 
   if(mode==='ca'){
-    let latestDate = null;
-    entries.forEach(e=>{ const dt=parseDateSmart(e.date); if(dt && (!latestDate || dt>latestDate)) latestDate=dt; });
-    labels = ['07:00–19:00 (Ca ngày)','19:00–07:00 (Ca tối)'];
-    labels.forEach(l=>{ infBucket[l]=0; roBucket[l]=0; });
-    entries.forEach(e=>{
-      const dt = parseDateSmart(e.date);
-      if(!dt || !latestDate || dt.getTime()!==latestDate.getTime()) return;
-      const key = (e.shift||'').indexOf('tối')>-1 ? labels[1] : labels[0];
-      infBucket[key]+=Number(e.influent_m3||0); roBucket[key]+=Number(e.ro_permeate_m3||0);
-    });
-  } else if(mode==='ngay'){
-    const monday = getMondayOfWeek(new Date());
-    const dayNames = ['Thứ 2','Thứ 3','Thứ 4','Thứ 5','Thứ 6','Thứ 7'];
-    labels = dayNames.map((n,i)=>{ const d=new Date(monday); d.setDate(monday.getDate()+i); return `${n} (${dateLabel(d)})`; });
-    labels.forEach(l=>{ infBucket[l]=0; roBucket[l]=0; });
+    const shiftSel = document.getElementById('flowCaSelect')?.value || 'ngay';
+    const hourLabels = shiftSel==='ngay'
+      ? ['07h','09h','11h','13h','15h','17h','19h']
+      : ['19h','21h','23h','01h','03h','05h','07h'];
+    const matchText = shiftSel==='ngay' ? 'ngày' : 'tối';
+    let latestDate = null, matched = null;
     entries.forEach(e=>{
       const dt = parseDateSmart(e.date);
       if(!dt) return;
-      const diffDays = Math.floor((dt-monday)/86400000);
-      if(diffDays<0 || diffDays>5) return;
-      const key = labels[diffDays];
-      infBucket[key]+=Number(e.influent_m3||0); roBucket[key]+=Number(e.ro_permeate_m3||0);
+      if((e.shift||'').indexOf(matchText)>-1 && (!latestDate || dt>latestDate)){ latestDate=dt; matched=e; }
     });
+    const infVal = matched ? Number(matched.influent_m3||0) : 0;
+    const roVal = matched ? Number(matched.ro_permeate_m3||0) : 0;
+    return { labels: hourLabels, influent: hourLabels.map(()=>infVal), roPermeate: hourLabels.map(()=>roVal) };
+  } else if(mode==='ngay'){
+    const hourLabels = ['07h','09h','11h','13h','15h','17h','19h','21h','23h','01h','03h','05h','07h'];
+    let latestDate = null;
+    entries.forEach(e=>{ const dt=parseDateSmart(e.date); if(dt && (!latestDate||dt>latestDate)) latestDate=dt; });
+    let dayEntry=null, nightEntry=null;
+    entries.forEach(e=>{
+      const dt = parseDateSmart(e.date);
+      if(!dt || !latestDate || dt.getTime()!==latestDate.getTime()) return;
+      if((e.shift||'').indexOf('ngày')>-1) dayEntry=e;
+      else if((e.shift||'').indexOf('tối')>-1) nightEntry=e;
+    });
+    const dayInf = dayEntry? Number(dayEntry.influent_m3||0):0, dayRo = dayEntry? Number(dayEntry.ro_permeate_m3||0):0;
+    const nightInf = nightEntry? Number(nightEntry.influent_m3||0):0, nightRo = nightEntry? Number(nightEntry.ro_permeate_m3||0):0;
+    // 07h..19h (7 điểm) = Ca ngày, 21h..07h (6 điểm) = Ca tối
+    const influentArr = [dayInf,dayInf,dayInf,dayInf,dayInf,dayInf,dayInf, nightInf,nightInf,nightInf,nightInf,nightInf,nightInf];
+    const roArr = [dayRo,dayRo,dayRo,dayRo,dayRo,dayRo,dayRo, nightRo,nightRo,nightRo,nightRo,nightRo,nightRo];
+    return { labels: hourLabels, influent: influentArr, roPermeate: roArr };
   } else { // tuan
     entries.forEach(e=>{
       const dt = parseDateSmart(e.date);
@@ -704,32 +718,34 @@ function getFlowBuckets(mode){
   return { labels, influent: labels.map(l=>infBucket[l]||0), roPermeate: labels.map(l=>roBucket[l]||0) };
 }
 
-function computeUFROSeries(influent, roPermeate){
+function computeUFROSeries(influent){
   const ufInput = influent.map(v=>v*DEFAULT_UF_INPUT_PCT/100);
-  const ufReject = ufInput.map(v=>v*DEFAULT_UF_REJECT_PCT/100);
-  const roInput = ufInput.map((v,i)=>v-ufReject[i]);
-  const roReject = roInput.map((v,i)=>Math.max(0, v-roPermeate[i]));
-  return {ufInput, ufReject, roInput, roReject};
+  const ufPermeate = ufInput.map(v=>v*(1-DEFAULT_UF_REJECT_PCT/100)); // Nước sạch UF (sau lọc UF)
+  return {ufPermeate};
+}
+
+function onFlowViewModeChange(){
+  const mode = document.getElementById('flowViewMode').value;
+  document.getElementById('flowCaSelect').style.display = mode==='ca' ? 'inline-block' : 'none';
+  renderFlowChart();
 }
 
 function renderFlowChart(){
   if(!lastData) return;
   const mode = document.getElementById('flowViewMode')?.value || 'thang';
   const b = getFlowBuckets(mode);
-  const s = computeUFROSeries(b.influent, b.roPermeate);
+  const s = computeUFROSeries(b.influent);
   if(charts.flowTrend) charts.flowTrend.destroy();
   charts.flowTrend = new Chart(document.getElementById('flowTrend'), {
     type:'line',
     data:{labels:b.labels, datasets:[
       {label:'Nước thải đầu vào', data:b.influent, borderColor:'#f5811f', backgroundColor:'#f5811f', tension:.35, pointRadius:3},
-      {label:'UF đầu vào', data:s.ufInput, borderColor:'#4fc3f7', backgroundColor:'#4fc3f7', tension:.35, pointRadius:3},
-      {label:'UF Reject', data:s.ufReject, borderColor:'#e5484d', backgroundColor:'#e5484d', tension:.35, pointRadius:3, borderDash:[4,3]},
-      {label:'RO đầu vào', data:s.roInput, borderColor:'#f5f5f5', backgroundColor:'#f5f5f5', tension:.35, pointRadius:3},
-      {label:'RO Reject', data:s.roReject, borderColor:'#b388ff', backgroundColor:'#b388ff', tension:.35, pointRadius:3, borderDash:[4,3]}
+      {label:'Nước sạch UF', data:s.ufPermeate, borderColor:'#4fc3f7', backgroundColor:'#4fc3f7', tension:.35, pointRadius:3},
+      {label:'Nước sạch RO', data:b.roPermeate, borderColor:'#f5f5f5', backgroundColor:'#f5f5f5', tension:.35, pointRadius:3}
     ]},
     options:{responsive:true,maintainAspectRatio:false,
       plugins:{legend:{position:'bottom',labels:{boxWidth:8,boxHeight:8,padding:8,font:{size:9.5}}}},
-      scales:{y:{grid:{color:'#26262a'},ticks:{callback:v=>(v/1000).toFixed(1)+'K'}}, x:{grid:{display:false},ticks:{font:{size:8.5}}}}}
+      scales:{y:{grid:{color:'#26262a'},ticks:{callback:v=>v.toLocaleString('vi-VN')}}, x:{grid:{display:false},ticks:{font:{size:8.5}}}}}
   });
 }
 
