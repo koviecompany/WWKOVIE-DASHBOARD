@@ -331,16 +331,38 @@
           <option>UF A</option><option>UF B</option><option>RO A</option><option>RO B</option>
         </select>
         <label>Ngày CIP</label><input type="date" id="cip_date">
-        <label>Ghi chú</label><input type="text" id="cip_note" placeholder="VD: CIP bằng NaOH + Citric" style="min-width:180px;">
       </div>
+
+      <h4 style="margin-top:14px;">Hóa chất sử dụng để CIP</h4>
+      <table class="ef-detail-table" id="cipChemTable">
+        <thead><tr><th style="text-align:left;">Chọn</th><th style="text-align:left;">Hóa chất</th><th>Số lượng</th><th>Đơn vị</th></tr></thead>
+        <tbody>
+          <tr><td><input type="checkbox" class="cip-chem-check" data-chem="NaOH"></td><td class="label-col">NaOH</td><td><input type="number" step="0.1" class="cip-chem-qty" data-chem="NaOH"></td>
+            <td><select class="cip-chem-unit" data-chem="NaOH"><option value="lít">lít</option><option value="kg">kg</option></select></td></tr>
+          <tr><td><input type="checkbox" class="cip-chem-check" data-chem="NaOCl"></td><td class="label-col">NaOCl</td><td><input type="number" step="0.1" class="cip-chem-qty" data-chem="NaOCl"></td>
+            <td><select class="cip-chem-unit" data-chem="NaOCl"><option value="lít">lít</option><option value="kg">kg</option></select></td></tr>
+          <tr><td><input type="checkbox" class="cip-chem-check" data-chem="Axit Citric"></td><td class="label-col">Axit Citric</td><td><input type="number" step="0.1" class="cip-chem-qty" data-chem="Axit Citric"></td>
+            <td><select class="cip-chem-unit" data-chem="Axit Citric"><option value="kg">kg</option><option value="lít">lít</option></select></td></tr>
+          <tr><td><input type="checkbox" class="cip-chem-check" data-chem="SMB"></td><td class="label-col">SMB (Sodium Metabisulfite)</td><td><input type="number" step="0.1" class="cip-chem-qty" data-chem="SMB"></td>
+            <td><select class="cip-chem-unit" data-chem="SMB"><option value="kg">kg</option><option value="lít">lít</option></select></td></tr>
+        </tbody>
+      </table>
+
+      <div class="ef-row"><label>Ghi chú</label><input type="text" id="cip_note" placeholder="Ghi chú thêm (nếu có)" style="min-width:220px;"></div>
+
       <div class="ef-actions">
         <button class="btn-save" onclick="saveCip()">💾 Lưu lần CIP này</button>
       </div>
       <div id="cip_msg" class="ef-msg"></div>
+
+      <h4 style="margin-top:16px;">🤖 Cảnh báo CIP thông minh</h4>
+      <p style="font-size:10px;color:var(--gray2);margin:0 0 8px;">Phân tích tự động dựa trên xu hướng áp suất Reject RO, TDS sau lọc UF, và số ngày kể từ lần CIP gần nhất — không phải cảnh báo từ cảm biến thời gian thực.</p>
+      <div id="cipSmartAlerts"></div>
+
       <h4 style="margin-top:16px;">Tình trạng hiện tại</h4>
       <div id="cipStatusList"></div>
       <h4 style="margin-top:16px;">Lịch sử CIP gần đây</h4>
-      <div style="overflow-x:auto;"><table><thead><tr><th>Ngày</th><th>Hệ thống</th><th>Ghi chú</th></tr></thead><tbody id="cipHistoryBody"></tbody></table></div>
+      <div style="overflow-x:auto;"><table><thead><tr><th>Ngày</th><th>Hệ thống</th><th>Hóa chất</th><th>Ghi chú</th></tr></thead><tbody id="cipHistoryBody"></tbody></table></div>
     </div>
 
     <div class="panel wide" id="panel-pSettings"><h3>THÔNG TIN TÀI KHOẢN & HỆ THỐNG</h3><div id="settingsList"></div></div>
@@ -351,27 +373,33 @@
         <div class="ef-row">
           <label>Ngày</label><input type="date" id="ef_date">
           <label>Ca</label>
-          <select id="ef_shift"><option value="Ca ngày">Ca ngày (7:00–19:00)</option><option value="Ca tối">Ca tối (19:00–7:00)</option></select>
+          <select id="ef_shift" onchange="updateShiftColumns()"><option value="Ca ngày">Ca ngày (7:00–19:00)</option><option value="Ca tối">Ca tối (19:00–7:00)</option></select>
           <label>Nhân viên</label><input type="text" id="ef_fullname" readonly style="min-width:160px;">
         </div>
 
-        <h4>Số liệu vận hành (tổng quan)</h4>
+        <h4>💧 Lưu lượng nước (số chính, bắt buộc nhập)</h4>
         <div class="ef-grid">
-          <div><label>Lưu lượng nước thải đầu vào (m³)</label><input type="number" id="ef_influent"></div>
-          <div><label>Nước sạch RO (m³)</label><input type="number" id="ef_ro"></div>
-          <div><label>Nước bơm cho YY (m³)</label><input type="number" id="ef_pumpyy"></div>
-          <div><label>pH RO</label><input type="number" step="0.1" id="ef_ph"></div>
-          <div><label>TDS RO (ppm)</label><input type="number" id="ef_tds"></div>
-          <div><label>ORP RO (mV)</label><input type="number" id="ef_orp"></div>
-          <div><label>Độ màu RO (Pt-Co)</label><input type="number" id="ef_color"></div>
-          <div><label>Độ đục RO (NTU)</label><input type="number" id="ef_turbidity"></div>
+          <div><label>Nước thải đầu vào (m³)</label><input type="number" id="ef_influent" placeholder="VD: 600"></div>
+          <div><label>Nước sạch RO (m³)</label><input type="number" id="ef_ro" placeholder="VD: 400"></div>
+          <div><label>Nước bơm cho YY (m³)</label><input type="number" id="ef_pumpyy" placeholder="VD: 380"></div>
         </div>
 
-        <details class="ef-detail"><summary>📋 Chi tiết pH / TDS / ORP theo từng điểm (bấm để mở)</summary>
+        <h4>🧪 Chất lượng nước RO (đo tại đầu ra RO)</h4>
+        <div class="ef-grid">
+          <div><label>pH</label><input type="number" step="0.1" id="ef_ph" placeholder="VD: 6.8"></div>
+          <div><label>TDS (ppm)</label><input type="number" id="ef_tds" placeholder="VD: 58"></div>
+          <div><label>ORP (mV)</label><input type="number" id="ef_orp" placeholder="VD: 245"></div>
+          <div><label>Độ màu (Pt-Co)</label><input type="number" id="ef_color" placeholder="VD: 12"></div>
+          <div><label>Độ đục (NTU)</label><input type="number" id="ef_turbidity" placeholder="VD: 5"></div>
+        </div>
+
+        <p style="font-size:10px;color:var(--gray2);margin:2px 0 0;">Nếu cần ghi chi tiết từng điểm đo (Bể lắng, TMF, Lọc UF, Lọc RO...) hoặc thông số bơm/áp suất RO A-B, bấm mở 2 mục bên dưới — không bắt buộc mỗi ca.</p>
+
+        <details class="ef-detail"><summary>📋 Chi tiết pH / TDS / ORP theo từng điểm (không bắt buộc)</summary>
           <div id="detailPhTdsOrp"></div>
         </details>
 
-        <details class="ef-detail"><summary>⚙️ Chi tiết thông số RO A & RO B (bấm để mở)</summary>
+        <details class="ef-detail"><summary>⚙️ Chi tiết thông số RO A & RO B (không bắt buộc)</summary>
           <div id="detailRoAB"></div>
         </details>
 
@@ -573,22 +601,36 @@ function slugify(s){
 function buildPointTable(prefix, points){
   const rows = points.map(p=>{
     const slug = prefix+'_'+slugify(p);
-    return `<tr><td class="label-col">${p}</td><td><input type="number" step="0.01" id="d_${slug}_sang" class="detail-input" placeholder="Sáng"></td><td><input type="number" step="0.01" id="d_${slug}_toi" class="detail-input" placeholder="Tối"></td></tr>`;
+    return `<tr><td class="label-col">${p}</td>
+      <td class="col-sang"><input type="number" step="0.01" id="d_${slug}_sang" class="detail-input" placeholder="Sáng"></td>
+      <td class="col-toi"><input type="number" step="0.01" id="d_${slug}_toi" class="detail-input" placeholder="Tối"></td></tr>`;
   }).join('');
-  return `<table class="ef-detail-table"><thead><tr><th style="text-align:left;">Điểm đo</th><th>Sáng</th><th>Tối</th></tr></thead><tbody>${rows}</tbody></table>`;
+  return `<table class="ef-detail-table"><thead><tr><th style="text-align:left;">Điểm đo</th><th class="col-sang">Sáng</th><th class="col-toi">Tối</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
 function buildRoGroup(letter){
   const l = letter.toLowerCase();
+  function r(label, idBase){
+    return `<tr><td class="label-col">${label}</td>
+      <td class="col-sang"><input type="number" step="0.1" id="d_${idBase}_sang" class="detail-input"></td>
+      <td class="col-toi"><input type="number" step="0.1" id="d_${idBase}_toi" class="detail-input"></td></tr>`;
+  }
   let rows = '';
-  ['1','2','3'].forEach(n=>{ rows += `<tr><td class="label-col">CS bơm RO ${letter}-${n} (Hz)</td><td><input type="number" step="0.1" id="d_cs_ro${l}${n}_sang" class="detail-input"></td><td><input type="number" step="0.1" id="d_cs_ro${l}${n}_toi" class="detail-input"></td></tr>`; });
-  ['1','2','3'].forEach(n=>{ rows += `<tr><td class="label-col">Áp vào RO ${letter}-${n} (Bar)</td><td><input type="number" step="0.1" id="d_apvao_ro${l}${n}_sang" class="detail-input"></td><td><input type="number" step="0.1" id="d_apvao_ro${l}${n}_toi" class="detail-input"></td></tr>`; });
-  ['1','2','3'].forEach(n=>{ rows += `<tr><td class="label-col">Áp Reject RO ${letter}-${n} (Bar)</td><td><input type="number" step="0.1" id="d_apreject_ro${l}${n}_sang" class="detail-input"></td><td><input type="number" step="0.1" id="d_apreject_ro${l}${n}_toi" class="detail-input"></td></tr>`; });
-  rows += `<tr><td class="label-col">Nước cấp RO ${letter} (m³/h)</td><td><input type="number" step="0.1" id="d_nuoccap_ro${l}_sang" class="detail-input"></td><td><input type="number" step="0.1" id="d_nuoccap_ro${l}_toi" class="detail-input"></td></tr>`;
-  rows += `<tr><td class="label-col">Nước sạch RO ${letter} (m³/h)</td><td><input type="number" step="0.1" id="d_nuocsach_ro${l}_sang" class="detail-input"></td><td><input type="number" step="0.1" id="d_nuocsach_ro${l}_toi" class="detail-input"></td></tr>`;
-  rows += `<tr><td class="label-col">Nước Reject RO ${letter} (m³/h)</td><td><input type="number" step="0.1" id="d_nuocreject_ro${l}_sang" class="detail-input"></td><td><input type="number" step="0.1" id="d_nuocreject_ro${l}_toi" class="detail-input"></td></tr>`;
-  ['1','2','3'].forEach(n=>{ rows += `<tr><td class="label-col">Đồng hồ nước ${letter}${n} (m³/h)</td><td><input type="number" step="0.1" id="d_dhn_${l}${n}_sang" class="detail-input"></td><td><input type="number" step="0.1" id="d_dhn_${l}${n}_toi" class="detail-input"></td></tr>`; });
-  return `<div class="ef-detail-group"><h5>Hệ RO ${letter}</h5><table class="ef-detail-table"><thead><tr><th style="text-align:left;">Thông số</th><th>Sáng</th><th>Tối</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  ['1','2','3'].forEach(n=>{ rows += r(`CS bơm RO ${letter}-${n} (Hz)`, `cs_ro${l}${n}`); });
+  ['1','2','3'].forEach(n=>{ rows += r(`Áp vào RO ${letter}-${n} (Bar)`, `apvao_ro${l}${n}`); });
+  ['1','2','3'].forEach(n=>{ rows += r(`Áp Reject RO ${letter}-${n} (Bar)`, `apreject_ro${l}${n}`); });
+  rows += r(`Nước cấp RO ${letter} (m³/h)`, `nuoccap_ro${l}`);
+  rows += r(`Nước sạch RO ${letter} (m³/h)`, `nuocsach_ro${l}`);
+  rows += r(`Nước Reject RO ${letter} (m³/h)`, `nuocreject_ro${l}`);
+  ['1','2','3'].forEach(n=>{ rows += r(`Đồng hồ nước ${letter}${n} (m³/h)`, `dhn_${l}${n}`); });
+  return `<div class="ef-detail-group"><h5>Hệ RO ${letter}</h5><table class="ef-detail-table"><thead><tr><th style="text-align:left;">Thông số</th><th class="col-sang">Sáng</th><th class="col-toi">Tối</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+function updateShiftColumns(){
+  const shift = document.getElementById('ef_shift')?.value || 'Ca ngày';
+  const showSang = shift.indexOf('tối') === -1; // Ca ngày -> hiện Sáng, Ca tối -> hiện Tối
+  document.querySelectorAll('.col-sang').forEach(el=>{ el.style.display = showSang ? '' : 'none'; });
+  document.querySelectorAll('.col-toi').forEach(el=>{ el.style.display = showSang ? 'none' : ''; });
 }
 
 function buildDetailForms(){
@@ -601,11 +643,14 @@ function buildDetailForms(){
   }
   const roAB = document.getElementById('detailRoAB');
   if(roAB){ roAB.innerHTML = buildRoGroup('A') + buildRoGroup('B'); }
+  updateShiftColumns();
 }
 
 function collectDetailFieldsJSON(){
   const obj = {};
   document.querySelectorAll('.detail-input').forEach(inp=>{
+    const td = inp.closest('td');
+    if(td && td.style.display === 'none') return;
     if(inp.value!=='') obj[inp.id.replace(/^d_/,'')] = inp.value;
   });
   return JSON.stringify(obj);
@@ -615,19 +660,40 @@ function clearDetailFields(){
 }
 
 /* ================= THEO DÕI CIP (VỆ SINH HÓA CHẤT) UF & RO ================= */
+function collectCipChemicals(){
+  const result = {};
+  document.querySelectorAll('.cip-chem-check').forEach(cb=>{
+    if(cb.checked){
+      const chem = cb.getAttribute('data-chem');
+      const qtyEl = document.querySelector(`.cip-chem-qty[data-chem="${chem}"]`);
+      const unitEl = document.querySelector(`.cip-chem-unit[data-chem="${chem}"]`);
+      result[chem] = { qty: qtyEl.value || 0, unit: unitEl.value };
+    }
+  });
+  return result;
+}
+function clearCipChemicals(){
+  document.querySelectorAll('.cip-chem-check').forEach(cb=>cb.checked=false);
+  document.querySelectorAll('.cip-chem-qty').forEach(i=>i.value='');
+}
+function formatCipChemicals(chemObj){
+  return Object.keys(chemObj).map(k=>`${k}: ${chemObj[k].qty} ${chemObj[k].unit}`).join(', ') || '—';
+}
+
 async function saveCip(){
   const msg = document.getElementById('cip_msg');
   const system = document.getElementById('cip_system').value;
   const date = document.getElementById('cip_date').value;
   const note = document.getElementById('cip_note').value;
+  const chemicals = collectCipChemicals();
   if(!date){ msg.style.color='var(--red)'; msg.textContent='Vui lòng chọn ngày CIP.'; return; }
-  const cip = { system, date, note, username: currentUser?currentUser.username:'', fullname: currentUser?currentUser.fullname:'' };
+  const cip = { system, date, note, username: currentUser?currentUser.username:'', fullname: currentUser?currentUser.fullname:'', chemicals_json: JSON.stringify(chemicals) };
 
   if(isApiConfigured() && currentUser && currentUser.username!=='demo'){
     try{
       const res = await fetch(API_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify({action:'saveCip', cip})});
       const data = await res.json();
-      if(data.success){ msg.style.color='var(--green)'; msg.textContent=data.message; document.getElementById('cip_note').value=''; await loadRealData(); }
+      if(data.success){ msg.style.color='var(--green)'; msg.textContent=data.message; document.getElementById('cip_note').value=''; clearCipChemicals(); await loadRealData(); }
       else { msg.style.color='var(--red)'; msg.textContent=data.message||'Lưu thất bại'; }
     }catch(e){ msg.style.color='var(--red)'; msg.textContent='Không kết nối được backend.'; }
   } else {
@@ -636,11 +702,83 @@ async function saveCip(){
     lastData.cipLog = lastData.cipLog||[];
     lastData.cipLog.push(cip);
     msg.style.color='var(--orange)'; msg.textContent='Chế độ demo: đã thêm tạm (không lưu thật vào Google Sheets).';
+    clearCipChemicals();
     renderCIP(lastData);
   }
 }
 
+/* ---- Cảnh báo CIP thông minh (rule-based, phân tích xu hướng từ dữ liệu đã nhập) ---- */
+function avgDetailField(entry, fieldSlug){
+  if(!entry.detail_json) return null;
+  let s; try{ s = JSON.parse(entry.detail_json); }catch(e){ return null; }
+  const sang = parseFloat(s[fieldSlug+'_sang']), toi = parseFloat(s[fieldSlug+'_toi']);
+  const vals = [sang,toi].filter(v=>!isNaN(v));
+  return vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : null;
+}
+
+function computeCipSmartAlerts(d){
+  const alerts = [];
+  const entries = (d.dailyEntries||[])
+    .map(e=>({...e, dt:parseDateSmart(e.date)}))
+    .filter(e=>e.dt && e.detail_json)
+    .sort((a,b)=>a.dt-b.dt);
+
+  if(entries.length>=4){
+    ['a','b'].forEach(l=>{
+      const label = 'RO '+l.toUpperCase();
+      const series = entries.map(e=>{
+        const vals=['1','2','3'].map(n=>avgDetailField(e,'apreject_ro'+l+n)).filter(v=>v!==null);
+        return vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : null;
+      }).filter(v=>v!==null);
+      if(series.length>=4){
+        const half = Math.floor(series.length/2);
+        const before = series.slice(0,half).reduce((a,b)=>a+b,0)/half;
+        const after = series.slice(-half).reduce((a,b)=>a+b,0)/half;
+        if(before>0){
+          const pct = (after-before)/before*100;
+          if(pct>=8) alerts.push({level:'warning', text:`⚠️ Áp suất Reject ${label} tăng ${pct.toFixed(1)}% so với giai đoạn trước — dấu hiệu màng có thể đang bám cặn, nên cân nhắc CIP sớm.`});
+        }
+      }
+    });
+    [['Lọc UF-A','UF A'],['Lọc UF-B','UF B']].forEach(([point,label])=>{
+      const slug = 'tds_'+slugify(point);
+      const series = entries.map(e=>avgDetailField(e,slug)).filter(v=>v!==null);
+      if(series.length>=4){
+        const half = Math.floor(series.length/2);
+        const before = series.slice(0,half).reduce((a,b)=>a+b,0)/half;
+        const after = series.slice(-half).reduce((a,b)=>a+b,0)/half;
+        if(before>0){
+          const pct = (after-before)/before*100;
+          if(pct>=10) alerts.push({level:'warning', text:`⚠️ TDS sau ${point} tăng ${pct.toFixed(1)}% — hiệu quả lọc ${label} có thể đang giảm, nên kiểm tra/CIP.`});
+        }
+      }
+    });
+  }
+
+  const systems=['UF A','UF B','RO A','RO B'];
+  const log=d.cipLog||[]; const latestBySystem={};
+  log.forEach(c=>{ const dt=parseDateSmart(c.date); if(dt && (!latestBySystem[c.system]||dt>latestBySystem[c.system])) latestBySystem[c.system]=dt; });
+  const today=new Date();
+  systems.forEach(s=>{
+    const dt=latestBySystem[s];
+    if(dt){
+      const days=Math.floor((today-dt)/86400000);
+      if(days>=30) alerts.push({level:'danger', text:`🔴 ${s}: đã ${days} ngày kể từ lần CIP gần nhất — vượt ngưỡng khuyến nghị 30 ngày.`});
+    }
+  });
+
+  if(alerts.length===0) alerts.push({level:'ok', text:'✅ Chưa phát hiện dấu hiệu bất thường cần CIP.'});
+  return alerts;
+}
+
+function renderCipSmartAlerts(d){
+  const el = document.getElementById('cipSmartAlerts');
+  if(!el) return;
+  el.innerHTML = computeCipSmartAlerts(d).map(a=>`<div class="alert-item ${a.level}">${a.text}</div>`).join('');
+}
+
 function renderCIP(d){
+  renderCipSmartAlerts(d);
   const log = d.cipLog||[];
   const systems = ['UF A','UF B','RO A','RO B'];
   const latestBySystem = {};
@@ -665,8 +803,11 @@ function renderCIP(d){
   }
   const histEl = document.getElementById('cipHistoryBody');
   if(histEl){
-    histEl.innerHTML = log.slice(-15).reverse().map(c=>
-      `<tr><td>${c.date||''}</td><td>${c.system||''}</td><td>${c.note||''}</td></tr>`).join('') || '<tr><td colspan="3" style="color:var(--gray);">Chưa có lịch sử CIP.</td></tr>';
+    histEl.innerHTML = log.slice(-15).reverse().map(c=>{
+      let chemStr = '—';
+      if(c.chemicals_json){ try{ chemStr = formatCipChemicals(JSON.parse(c.chemicals_json)); }catch(e){} }
+      return `<tr><td>${c.date||''}</td><td>${c.system||''}</td><td>${chemStr}</td><td>${c.note||''}</td></tr>`;
+    }).join('') || '<tr><td colspan="4" style="color:var(--gray);">Chưa có lịch sử CIP.</td></tr>';
   }
 }
 
