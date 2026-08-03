@@ -1,1197 +1,136 @@
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>YOU YOUNG VINA - WWTP Dashboard</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
-<style>
-  :root{
-    --bg:#0e0e10; --panel:#18181b; --panel2:#1f1f22; --border:#2b2b2f;
-    --orange:#f5811f; --orange2:#ff9a44; --white:#f5f5f5; --gray:#9aa0a6;
-    --gray2:#6b7077; --green:#3ecf8e; --red:#e5484d;
+/**
+ * ================================================================
+ * WWTP DASHBOARD - BACKEND (Google Apps Script) - v2
+ * Trạm xử lý nước thải YOU YOUNG VINA
+ * ================================================================
+ * CÁCH CÀI ĐẶT: giống hướng dẫn trước — dán toàn bộ file này vào
+ * Apps Script (Tiện ích mở rộng > Apps Script), Lưu, rồi Triển khai
+ * lại (Deploy > Manage deployments > Edit > chọn "New version" > Deploy)
+ * để bản cập nhật có hiệu lực trên URL cũ.
+ * ================================================================
+ */
+
+var SHEET_USERS = 'Users';
+var SHEET_DAILY_ENTRIES = 'DailyEntries';
+
+function doGet(e) {
+  var action = e.parameter.action;
+  if (action === 'getData') {
+    return jsonResponse(getAllData());
   }
-  *{box-sizing:border-box;}
-  body{margin:0;background:var(--bg);color:var(--white);font-family:'Segoe UI', Inter, Arial, sans-serif;font-size:13px;}
-
-  #loginScreen{position:fixed;inset:0;background:radial-gradient(circle at 30% 20%, #1c1c1f, #0a0a0b 70%);display:flex;align-items:center;justify-content:center;z-index:999;}
-  .login-box{width:340px;background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:32px 28px;text-align:center;}
-  .login-box img.login-logo{max-width:100%;width:220px;height:auto;margin:0 auto 16px;display:block;}
-  .login-box p.sub{color:var(--gray);font-size:11px;margin:0 0 22px;}
-  .login-box input{width:100%;padding:11px 12px;margin-bottom:10px;border-radius:8px;border:1px solid var(--border);background:var(--panel2);color:var(--white);font-size:13px;}
-  .login-box input:focus{outline:none;border-color:var(--orange);}
-  .login-box button{width:100%;padding:11px;border:none;border-radius:8px;background:var(--orange);color:#151515;font-weight:800;font-size:13px;cursor:pointer;margin-top:6px;}
-  .login-box button:disabled{opacity:.6;cursor:default;}
-  .login-msg{font-size:11px;color:var(--red);margin-top:10px;min-height:14px;}
-  .login-demo{margin-top:14px;font-size:10.5px;color:var(--gray2);cursor:pointer;text-decoration:underline;}
-  .api-cfg{margin-top:16px;font-size:9.5px;color:var(--gray2);border-top:1px solid var(--border);padding-top:10px;line-height:1.5;text-align:left;}
-
-  .app{display:none;min-height:100vh;}
-  .app.visible{display:flex;}
-  .sidebar{width:220px;flex-shrink:0;background:var(--panel);border-right:1px solid var(--border);padding:20px 16px;display:flex;flex-direction:column;}
-  .brand{text-align:center;margin-bottom:14px;}
-  .brand img{max-width:100%;width:190px;height:auto;display:block;margin:0 auto;}
-
-  .nav{display:flex;flex-direction:column;gap:2px;flex:1;}
-  .nav a{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;color:var(--gray);text-decoration:none;font-size:12.3px;font-weight:600;cursor:pointer;user-select:none;}
-  .nav a:hover{background:var(--panel2);color:var(--white);}
-  .nav a.active{background:var(--orange);color:#151515;}
-  .nav a.active:hover{background:var(--orange);}
-  .nav a .ic{width:16px;text-align:center;}
-
-
-  .userbadge-v2{margin-top:14px;background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:14px 10px;text-align:center;}
-  .avatar-circle{width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--orange),var(--orange2));display:flex;align-items:center;justify-content:center;font-size:24px;margin:0 auto 8px;border:2px solid #151515;}
-  .userbadge-v2 b{display:block;font-size:12.5px;}
-  .userbadge-v2 .role{font-size:10px;color:var(--gray);display:block;margin-top:1px;}
-  .shift-badge{margin-top:8px;display:inline-block;background:rgba(245,129,31,.15);color:var(--orange);font-size:10px;font-weight:700;padding:4px 10px;border-radius:20px;}
-  .logout-btn-v2{margin-top:10px;width:100%;background:none;border:1px solid var(--border);color:var(--gray);border-radius:8px;padding:6px;font-size:11px;cursor:pointer;}
-  .logout-btn-v2:hover{color:var(--red);border-color:var(--red);}
-
-  .dataasof{margin-top:12px;font-size:10.5px;color:var(--gray2);display:flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:8px;padding:8px 10px;}
-
-  .main{flex:1;padding:20px 24px;overflow-x:hidden;}
-  .topbar{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;flex-wrap:wrap;gap:12px;}
-  .title h1{font-size:22px;margin:0;font-weight:800;letter-spacing:.3px;}
-  .title h1 span{color:var(--orange);}
-  .title p{margin:4px 0 0;color:var(--gray);font-size:12px;}
-  .filters{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
-  .filter{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:11px;color:var(--gray);min-width:110px;}
-  .filter.static b{color:var(--orange);}
-  .filter b{display:block;color:var(--white);font-size:12px;margin-top:2px;}
-  .filter select, .filter input{background:transparent;border:none;color:var(--white);font-size:12px;font-weight:700;outline:none;width:100%;}
-  .filter select option{background:var(--panel2);color:var(--white);}
-  .reset{background:var(--orange);color:#151515;font-weight:700;border:none;border-radius:8px;padding:10px 16px;font-size:12px;display:flex;align-items:center;gap:6px;cursor:pointer;}
-
-  .kpi-row{display:grid;grid-template-columns:repeat(8,1fr);gap:10px;margin-bottom:16px;}
-  .kpi{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:5px;}
-  .kpi-top{display:flex;align-items:center;gap:6px;}
-  .kpi-icon{width:38px;height:38px;border-radius:50%;background:radial-gradient(circle at 32% 28%, #ffd39e 0%, #f5811f 55%, #b85f0f 100%);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;position:relative;overflow:hidden;animation:kpiGlow 2.4s ease-in-out infinite;}
-  .kpi-icon::after{content:'';position:absolute;top:5px;left:7px;width:13px;height:7px;background:rgba(255,255,255,.55);border-radius:50%;filter:blur(1.5px);transform:rotate(-25deg);}
-  .kpi-icon svg{width:19px;height:19px;position:relative;z-index:1;filter:drop-shadow(0 1px 1px rgba(0,0,0,.25));}
-  @keyframes kpiGlow{
-    0%,100%{box-shadow:0 0 6px rgba(245,129,31,.5), 0 0 14px rgba(245,129,31,.25);}
-    50%{box-shadow:0 0 16px rgba(245,129,31,.95), 0 0 30px rgba(245,129,31,.5);}
-  }
-  .kpi-label{font-size:9.5px;letter-spacing:.3px;color:var(--gray);font-weight:700;line-height:1.25;}
-  .kpi-value{font-size:19px;font-weight:800;}
-  .kpi-delta{font-size:11.5px;font-weight:700;}
-  .kpi-delta.up{color:var(--green);}
-  .kpi-delta.down{color:var(--red);}
-  .kpi-sub{font-size:9.5px;color:var(--gray2);}
-
-  #pageTitle{margin:0 0 12px;font-size:13px;color:var(--orange);font-weight:800;letter-spacing:.4px;display:flex;align-items:center;gap:8px;}
-
-  .page-grid{display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:12px;margin-bottom:12px;}
-  .panel{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px;display:flex;flex-direction:column;min-height:260px;}
-  .panel.wide{grid-column:span 2;}
-  .panel.full{grid-column:1/-1;}
-  .panel.eq{min-height:300px;}
-  .panel.tall{min-height:340px;}
-  .panel h3{margin:0 0 10px;font-size:11.5px;letter-spacing:.5px;color:var(--orange);display:flex;align-items:center;justify-content:space-between;font-weight:800;}
-  .chart-wrap{position:relative;flex:1;min-height:180px;}
-  .legend{display:flex;flex-direction:column;gap:6px;margin-top:8px;font-size:10.5px;}
-  .legend .item{display:flex;justify-content:space-between;gap:6px;}
-  .legend .dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px;}
-  .legend .name{color:var(--gray);flex:1;}
-  .legend .val{color:var(--white);font-weight:700;}
-  .donut-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;}
-  .donut-center b{font-size:16px;display:block;}
-  .donut-center span{font-size:9.5px;color:var(--gray);}
-
-  table{width:100%;border-collapse:collapse;font-size:11px;}
-  th{text-align:left;color:var(--gray);font-weight:700;font-size:10px;padding:6px 4px;border-bottom:1px solid var(--border);white-space:nowrap;}
-  td{padding:6px 4px;border-bottom:1px solid #232326;white-space:nowrap;}
-  tr.total td{font-weight:800;color:var(--white);border-top:1px solid var(--border);}
-  tr.sub td{color:var(--gray);font-size:10.3px;}
-  .up-txt{color:var(--green);font-weight:700;}
-  .down-txt{color:var(--red);font-weight:700;}
-
-  .bar-item{margin-bottom:10px;}
-  .bar-item .lbl{display:flex;justify-content:space-between;font-size:10.5px;margin-bottom:4px;color:var(--gray);}
-  .bar-item .lbl b{color:var(--white);}
-  .bar-track{background:#2a2a2d;border-radius:6px;height:9px;overflow:hidden;}
-  .bar-fill{background:linear-gradient(90deg,var(--orange),var(--orange2));height:100%;border-radius:6px;}
-  .bar-fill.warn{background:linear-gradient(90deg,var(--red),#ff7a7e);}
-
-  .alert-item{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:8px;margin-bottom:8px;font-size:11.5px;}
-  .alert-item.ok{background:rgba(62,207,142,.1);border:1px solid rgba(62,207,142,.35);}
-  .alert-item.warning{background:rgba(245,129,31,.1);border:1px solid rgba(245,129,31,.35);}
-  .alert-item.danger{background:rgba(229,72,77,.1);border:1px solid rgba(229,72,77,.35);}
-
-  .settings-row{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #232326;font-size:11.5px;}
-  .settings-row b{color:var(--white);}
-  .settings-row span{color:var(--gray);}
-
-  /* Data entry form */
-  .entry-form h4{color:var(--orange);font-size:11px;letter-spacing:.4px;margin:16px 0 8px;}
-  .ef-row{display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap;}
-  .ef-row label{font-size:11px;color:var(--gray);min-width:70px;}
-  .ef-row input, .ef-row select{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--white);font-size:12px;}
-  .ef-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;}
-  .ef-grid div{display:flex;flex-direction:column;gap:4px;}
-  .ef-grid label{font-size:10.5px;color:var(--gray);}
-  .ef-grid input{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--white);font-size:12px;}
-  .ef-tasks{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;}
-  .ef-tasks label{display:flex;align-items:center;gap:8px;font-size:11.5px;color:#d8d8d8;background:var(--panel2);padding:8px 10px;border-radius:8px;border:1px solid var(--border);}
-  .entry-form textarea{width:100%;background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--white);font-size:12px;font-family:inherit;resize:vertical;}
-  .ef-actions{display:flex;gap:10px;margin-top:14px;}
-  .btn-save{background:var(--orange);color:#151515;font-weight:800;border:none;border-radius:8px;padding:10px 20px;cursor:pointer;font-size:12.5px;}
-  .btn-clear{background:none;border:1px solid var(--border);color:var(--gray);border-radius:8px;padding:10px 20px;cursor:pointer;font-size:12.5px;}
-  .btn-clear:hover{color:var(--red);border-color:var(--red);}
-  .ef-msg{margin-top:10px;font-size:11.5px;min-height:16px;}
-
-  #panelStore{display:none;}
-  #loadingOverlay{position:fixed;inset:0;background:rgba(10,10,11,.85);display:flex;align-items:center;justify-content:center;z-index:998;color:var(--gray);font-size:13px;}
-
-  @media (max-width:1200px){ .kpi-row{grid-template-columns:repeat(4,1fr);} }
-  @media (max-width:1000px){ .kpi-row{grid-template-columns:repeat(3,1fr);} .panel.wide{grid-column:span 1;} }
-  @media (max-width:640px){ .app.visible{flex-direction:column;} .sidebar{width:100%;} .kpi-row{grid-template-columns:repeat(2,1fr);} }
-</style>
-</head>
-<body>
-
-<div id="loginScreen">
-  <div class="login-box">
-    <img class="login-logo" src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAQDAwMDAgQDAwMEBAQFBgoGBgUFBgwICQcKDgwPDg4MDQ0PERYTDxAVEQ0NExoTFRcYGRkZDxIbHRsYHRYYGRj/2wBDAQQEBAYFBgsGBgsYEA0QGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBj/wAARCACWANsDASIAAhEBAxEB/8QAHQAAAgMBAQEBAQAAAAAAAAAAAAgFBgcJAwQBAv/EAFYQAAECBQEEBAgICQgGCwAAAAECAwAEBQYRBwgSITETQVGzFCIyN0JhcXUVNjhSdHaBkQkWFyNigoOhxCQzcoWSpLK0OXOitcHhJUNIU1Vjk7HD0vD/xAAcAQABBQEBAQAAAAAAAAAAAAAAAQIDBAYFBwj/xAA1EQACAQIDBAgEBgMBAAAAAAAAAQIDEQQhMQUSQWEGIjI1cXOxsjRRgdETM3J0kcEVIyVS/9oADAMBAAIRAxEAPwB9oIIIAMd1QTtLG70HSdywhQgwnKawHfCS7x3s+ju8sY9eYw/UDVrbM0uoq63dFpWi/SWzh2oU+UMyyzk4Bc3XQpAz1qSB64dKPCdkZSp06Yp0/LNzMpMtqYfZdTvJcbUN1SSOsEEiGSg3oxylbgc6EbeOs6fLpNnr9si8P/mj2O3vrAWykW9ZoV1K8Ff4fZ00LneNEbtrUW4LcaJLdMqczJIJ5lLbqkJz9gEQsUvxJ/MsbkfkNxau11tJag3WxbVm2vbNRqj4KkMS9OcO6kc1qUp4JQkZGVKIHEdohibAc2u372pr1/Mady1vlz+Xsy5WZkN4OejKCRv5xjJx2xmH4Py35NFl3ldSmUKnH59mnJdI4pabaDhSD2FTgJ/ojshzIs0otrebIZtJ2SCCCCJyMqepH5RPyezZ0tND/GQKQWRWQroCjPjjxfSxyzw7YRGr7Zu0HbNzT9ArkhazFRp8wuVmpdymqy24hW6oZS7g8RzHOHq1P1Ht/SrTOoXlcTo6CWTusSyVALm3zncZR2qUR9gBJ4COQty3BUbsvOrXPV1pXP1SbdnZgoGE77iiogeoZwPUBFavJxtZktNX1GTb299XkNhLluWa4oel4NMJz9gej7Kdtua8XLV2aPbdl23PVF44blZGnTMw6v2JDpOPXyigaBbM10a0TqavNuO0S0WllLtUUjK5kg8W5dJ4KPUVnxU/pHhHRrT3S+xtLbcTRrKoMvT2yB00xjfmJkj0nXT4yz7eA6gISmqks28hZOKysL9Rq1t215hE0u27GobaxkIqbaULx60JcWofbiGOsMXwmwKeNRlUZVybqvCzRgsS3lHd3d/jnd3c9Wc4ixwRYjG3EibuEEEeM1NS8lJPTk28hlhlBcccWcBCQMkmFbSV2CTk7LUg72u6Ssy036tNbrj383LS+cF50jgn2dZPUBHwaW1KdrGl0jVKi+X5uZdfcdcPWS8rl2AcgOoCF21DvaYve7VzgK0U9jLcmyrhuozxUR85XM/YOqN/0b8y1I9r3eqjF7K289p7ZnCk/wDVCDtze9G7+3LxZutr9HlsrYkJ1V/tnNX5LdlaP35+CL3BBBG1MIEEEEABBBBAAQQQQAEEEEABAOBB9cEEAHHvWtroNpK/2vm3DPfveUf+MUWL/rp8p3UL6wzvemKBHMlqy2tDorsDMhGzrXH8cXLhdH3S7IhqYVvYK+TTVfrFMdwxDSRfpdhFafaYRD3TdFCsu0J+57lqLVPpci0XX5h08EjqAHNSicAJHEkgCPav1+jWtbM7cNw1FinUyRaL0zNPqwhtA6z2nqAHEkgDiY5gbRO0LWdbLtErJB+n2jIOk0+nKOFPK5eEPAc3COSeSAcDiSSVKighYR3mRGvOt9c1s1CNSmA7J0GSKm6TSyrgyg83F44F1eBvHqGEjgMm/bM2zBParTzN43iy/J2Uy54iMlDlWUk8UIPNLQPBSxz4pT1kfRsw7L01qfOMXvfEs9LWYyveYlzlC6uoHkk8wwCMKWPK8lPWR0clJSVkJBiRkZZmWlWG0tMsMoCENoSMJSlI4AADAAiGnScnvSHymo5I+VpmkWzbKWpeXl6dSqdL4S0y2ENsNIHJKRySAOQj7kLQ42lxtSVoUAUqScgg8iDELefm4r/u6Y7sxmGiGoHhUqizKu/+faTmQdWfLQOJa9qeY9WR1RSxG1qeGx1PB1ct9ZPnfT68OfidPC7GqYrAVcbSz/Dea5W1+nHlnwNrgggjrnGCMA1uv/wybXZlJf8A5OyoGfcQeDixxDXsTzPrwOoxf9Vr9TZ1s+CyLg+GJ1JTLjmWU8lOkerkO0+wwstIlkVK5pCTmlLUiamm2nFBXjELWAo57eJ4x570y26422bhn1pdp/JPh9ePLxPSehGwFL/qYldWPZXza1l9OHPwPdNCf/EhdzKdQGBPJkUN+kpXRlaj6gBuj159UMnpFMsSuidFXMOpbSp1xoKUcAqU+oJH2kgRk14ykvIac1qRlGktS7F4vNNNp5JSljAA+wRZG3FtbGaXWlqQ4hwKStJwUkTeQR6wY5GwIrZmMqziruFFyfNpr7HZ6RSe1cFRhJ2U60Yrkmn9zdYIqmnl2t3jY0tUlKT4Y3+Ym0D0XUjicdihhQ9vqi1x6lhsRTxNKNak7xkro8lxWGqYWtKhVVpRdmEEEETlcIIIIACCCCAAggggAIIIIAOQGunyndQvrDO96YoEX/XT5TuoX1hne9MUCOZLVltaHRrYK+TTVfrFMdwxDLVms0q3bfnK5XJ9iQp0k0p+YmphW6hpAGSon/8AZ5Qr2w9VKdRdlCv1erTrElIyldmn5iZfWEIaQlhklSieQAhcdpXaQqOsVwKt+33H5OypJ3LDByhdQcB4PujqHzEHlzPjHxbaqKEEQuO9Jny7R+0XVdaLm+CaQp+RsyRd3pOTV4q5tY4CYeHb81Hog/OJi17L+y7MakzUvfd+SrrFnNL3paUVlC6uoH7wwCOKua+Q4ZMGy7svP6kzcvfl+SjjNnsr3pWTXlKqssH7wwCMFXpngOGTHRiXl2JSUalZVlthhpAbbaaSEpQkDASkDgAAAABDadNze/MWUt3qxPyWlpeTk2ZSTYal5dlAbaZaQEIbQBgJSkcAABgAR6wQRaISDvPzcV/3dMd2YTiWmJiTm2ZyVeWy+ysONuoOChQ4gg9ohx7z83Ff93THdmFmt2mIqml9WlghrwhdXp7LLqx/NlzfQTnqHHjHmvTbDyr4yjGDs1GTX0z/AKPU+gWIjQwVec1dOcV/Nl/YwunN7y97WmiaUUIqMvhucZT1L6lgfNVzH2jqi4dUJ/bFwVbTy/1THRq35Z1UrOyu9wdSFYWnPLIIyD2gQ2lLqclWaLLVWnPh6VmWw424OsHt7CORHUQY0XRfbn+RofhVvzYZS58/vz8UZnpZsD/GYhVaH5M848uX25eDFg1lccXrPVkrWpQQllKQTndHRJOB2DJP3xV7Z+O1G+nsd4mLNrH56az+x7pEVm2fjtRvp7HeJjyraPe9XzH7j1zZitsel5cfajQL8+JNw/XWY7kxOf8AYu/X/i4g78+JNw/XWY7kxOD5F/6/8XGnpfFYvyJ+plavwuE/cQ9Cm6SXj+Kt9oYmnd2m1Epl5jJ4IVnxHPsJwfUo9kNTChXDRlqtmjVWVl0BpqkyxmlJ4EqW88hKj2+QB90b3pBeP402MiVm3d+pU7dYfKjxcRjxHPtAwfWk9sdLobj5UJPZtZ6reh4PVf3/ACczpxs2OIgtqUFo92f00b9PBxNCgggj0Q8zCCCCAAggggAIIIIACCCCADkBrp8p3UL6wzvemKBF/wBdPlO6hfWGd70xQI5ktWW1oWZN/wB0N6THTZio9Bbq6gqpvyrQ3TMPFKEjpFZ8ZKejBCeWcnicYrJwQQRkHnDT6R6CyusuxPVZqkMS7N30uvzLlOmVAJMynoGCqWcV81Xok+SrB5FWVenJObp9QfkJ+WelZqXcUy8w8koW0tJwpKgeRBBBELKLSTYJo6BbIW0YxdlCk9K7xmm2rgp7Aapc0vCRUJdCcBs9XSoSOXpJGeYVDbRxHlJuap9QYn5GZelZqXcS8y+ysoW0tJylSVDiCCAQY6Y7MO0dKavW0LbuZ9mXvWntZeQMITUWhw8IbHUrlvoHInI4Hhao1b9VkNSFs0MPBBBFgiIO8/NxX/d0x3ZhdrD+JE57/pPeKhibz83Ff93THdmF2sP4kTnv+k94qMH0l7zofon6M9F6Kd11/Mp+qKzevnJuH3lMd4qNL0BuOfTXJy1lq6SRWyqbbCjxaWCkHHqVvcR2jPWYzS9fOTcPvKY7xUXTQTzpve7nf8SIxexas6e3I7jtebT8G2bXblGFXYE99XtBNeKSsyJ1j89NZ/Y90iKzbPx2o309jvExZtY/PTWf2PdIis2z8dqN9PY7xMUto971fMfuOhszuel5cfajQL8+JNw/XWY7kxOD5F/6/wDFxB358Sbh+usx3JicHyL/ANf+LjTUvisX5E/UylX4XCfuIehWKl5of6npv+cmIh9La7OULVGlmWOW5x5Mk+2TwWhZA+8HBHs9cTNS80P9T03/ADkxFSsjzl2/7xY7wRyMTVlSxuEnB2aUfczvUKUKuBxkJq6bl7YjlQQHmfbBHtx4EEEEEABBBBAAQQQQAEEEEAHIDXT5TuoX1hne9MUCL/rp8p3UL6wzvemKBHMlqy2tDo1sFfJpqv1hmO4YiG2vdm83TITOqliyBVXZZveq0gwnjPtJH88gDm6gDiPTSO1IzM7BXyaar9YpjuGIaSLsYqVNJkDdpXOIIIIyDkHriQoVdq9s3LI3BQKg9T6nIvB+WmmThTax1+scwQeBBIPAw2W15s2C3Jyb1XsOn4oz6y7WacwnhJOE8ZhtI5NKJ8YeiTnySd1PYpyi4OzJ01JXOqmzvtA0bWuzeimegkLsp7Y+Eqak4Cxy6dkHiW1HmOaCcHqJ2qOLFr3RX7Lu6Rue2Km9TqrIudIxMNHiD1pI5KSRwKTwIODHTnZ+2jbd1pt9MjM9BSrulWt6dpW94roHN5jPFTZ6xzRnB4YJt0qu9k9SCcLZo1K8/NxX/d0x3ZhdrD+JE57/AKT3ioYm8/NxX/d0x3ZhdrD+JE57/pPeKjFdJe86H6J+jPQeinddfzKfqis3r5ybh95THeKi6aCedN73c7/iRFLvXzk3D7ymO8VF00E86b3u53/EiMPsnvyH6/7Zutsdw1PLXoiJ1j89NZ/Y90iKzbPx2o309jvExZtY/PTWf2PdIis2z8dqN9PY7xMVto971fMfuLezO56Xlx9qNAvz4k3D9dZjuTE4PkX/AK/8XEHfnxJuH66zHcmJwfIv/X/i401L4rF+RP1MpV+Fwn7iHoVmpeaH+p6b/nJiKlZHnLt/3ix3gi21LzQ/1PTf85MRUrI85dv+8WO8EcTHfF4Twj7maLB/CYv9UvYhyjzPtggPM+2CPcj5+CCCCAAggggAIIIIACDrgj9HlD2iADj7revpNpjUBfbcM73yhFCi46tvCY1/vl8HIXcE+f7wuKdHMlqy2tDo1sFfJpqv1imO4YhpIVbYHdCtnWuNZ4ouF3h7Zdkw1MX6XYRWn2meb7DMzLOS0yy28y6kocbcSFJWkjBBB4EEHBEc4NqLZkmdMam/fFkyjj1lzLm89LoypVIWo+SessEnxVej5J6iekceM1Ky09IvSU7LtTMs+hTTrLyAtDiFDBSpJ4EEHBBhZwU1ZhGTiziPH2UmrVSg1yVrNFqEzT6jKOB6Xm5ZZQ40sclJI5f8eR4Q0u0hsj1Cy3py99MZF+etri9NUlsFx+mjmVNjm4yPtUgc8jiFOBBAIIIPIiKEouDsyymmjoDoptc2/qJQVWBq3Ms0StzbJk0VdGGpWe3hu+MTwZdOevxCeRHkxpSdPKnZdCmpcPCoSj9bpjzDzKTvdGl0hRWkeTjI48uMctOYIIyDzBjeNG9q3UTShDFHm3Dc1st4SKZPOkOS6exh7iUD9FQUnsAini8DRxkozq5Timk/FWd1xOls/alfAxlTp5wk02uaaas+Ghvd6+cm4PeUx3ioumgnnTe93O/4kR4W/d+gWva+mt64PxZumYO85Tp7dYdcWef5tR3HePW2rJ64vWm+mVxWTqW7Oz5lpmQVJuNJmWF48YqSQCg4I5HtHrjD4fo3jcJtaniHHehv3us7Z8eK9D0HEdJ8BjdjVMPGW7UULbryvZcHo/5vyM21j89NZ/Y90iKzbPx2o309jvExZtZAU6z1cqBSFdDgnhn80nl2xWbZ+O1G+nsd4mMxtHver5j9xq9mdz0vLj7UaBfnxJuH66zHcmJwfIv/AF/4uIO/PiTcP11mO5MTg+Rf+v8Axcaal8Vi/In6mVq/C4T9xD0KzUvND/U9N/zkxFSsjzl2/wC8WO8EW2p8NIOPD/oem/5yYirWEw/Mak0FTDLjoRUGFKLaCoJAWMk45COLjU3i8Il8o+5mhwjSweLb/wDUvYhxjzPtgg9IiIGs3patAqsrSqrXZNmpTaw3LU5K+kmn1HqQynK1esgYHM4j3G58/onoIAcgHBHqMEABBBBAAQQQQAEfilobQXHFBKE+MpR4AAcSYpOqGp1M0qtNi4KtQLirDD0wJYNUSSMytslJO8viAlPDGT1kCFi1S2ua/dOn1VtrTvSu85OaqLCpU1OoSSwWG1gpWUNtpVle6SASQBnPHEMlNR1HKLYlVz1FNYvit1dByidqMzMpPaFvKUP3ERFRZGNO7/fwiWsK6HOHAIpEweH9iP6XpxqI1/OWBdSfbSJn/wCkc9plm47P4P2eQ5pPd9OCwXGKy28U9gXLpAP3tn7ob+OWOh18ap6FX1MViS0+uCoU6eaSxUKa9T5hoPJScpUlfRndWklWCQRhRBHHIa2R21qCpA+FtItRpJfWG5BLo+8lP/tFylUSjZkM4tu6GhgiHtS4mLtsqmXLK06pU9moMJmEStTlyxMNA9TiD5J/5RMRORBCra77G1v307NXTpwqVt64l5dfklDdkp5XMnAH5lw/OSN0nmOuGpghsoqSsxU2tDi9d1l3VYVzu29eFCnKPUW8/mZlGA4PnIUPFWn9JJIiCjs9eFjWjf8Abq6FeVvyNZkFcQ1NN5LZ+chQ8ZCv0kkGFB1I2CApx6oaVXQEA5UKRXCSB6kTCRn2BaT/AEoqzoNdknjUT1Ef7Mjkcj1GNWsbaR1m0+ablaJes3NSDYATIVYeGsgdg3/GSP6KhEPeeiWq+n7jn402JWJWXQcGcYZ8Jlz6w61vJ+/EUAKSVFKVJJHMA8REOcWPyY5lF29npuVTK6gaWU2pp5Kdp0zuj/0nkqH+1Ftpu1Psvz04xOz1lVuizba0upUKcFBCgQQcsuHPEdkIPg9hgweyI6lOnVd6sFLxSZNSxFairUpyj4Nr0OjM5tE7KNapsxKT9fqaGpmeVUnUGQnElT6k7pVkJ4cOocI9Xtp/Zdk7HFqN1SqztISc+Cops0STv7/lKAPlcecc4T4oyrgO08IlKDbVx3TPJkrZoFUrMwo4DdOlVzB/2AcfbDY4egpOSpRu1Z5LNfLw5D3jcS4qLqysndZvJrRrnzHmn9svQSl04SdC0/r1UQhpDKW3pRlpspQpSkAlxxRwFKURw5kxSK5t93AmXVL2VptRaO0BhLk/Mqfx69xsNp/eYpti7E+sF0ramLiakLQkVYJVUHA9MY9TLZOD/SUmGx0y2Q9JNPHGKjO09y6qy3hQnaylK221drbA8RPqJ3iO2LVKi49iKj9LFarXlP8AMk5eLbMAs5e13tHLRMPXbPWnabp8eoMs/B7K0HmGUow6/wC3e3e1UNjpPobY+kNOcVQpV2erc0kCer1RPSzk0eZBWfIRn0E8O3J4xpKUhKQlIAAGAByA7I/YtRppZvNlZyuEEEESDQggggAIIXPVraerej2oFNtOvaZs1GYqbKXpOYp9b/NubznR7pC2AUkKx6uIOY3hqozspa7tUuRqm0x1hpb0wETZcYZSkEkqdUhHAAcTu8OPOGqSeQrTRKewkeyDJ+cr7zGF6Ua53zq/KvVO39JG5GhtuqaRWajWy3LzJSSD0KRLlbg4c8ADkTnIjRdRdTbO0rs5Vx3rVUyUsVdGyy2kuPTLmM9G0gcVq/cBxJAgUk1cLPQt+T85X3wZPzlffGLyeomul0UxFWtbRam0unup6SXF1V7wWaeQeRLDTS+jyOpSsxUpzarqWn96S1t65aW1KzvCeLNVkJoVGUcTkZUCEpJSM8d3eUM8UwjmlqLusZXJ+cr7zBk/OV95jHdUNbKtp/pyjUaiWbJXhaC0tufCNNrAQtDbmAl1SCyUlBUQMpUcZGQOOPv0M1gf1rsaYu1q3ZajSDc05JpZ+EDMvhxG6TvpDaUpBCgRxJPZC7yvYTddrmpwR8NYmp2SokxOSDUk68ygubs7MKl2t0cVFS0oWU4AJ8kxk+jOtN0az2vNXLS9PJWkUhl5cs1NT1YK/CnUjj0aUMeQCUgqOOZwCQRCuSTsFuJs0ELhLbT9fmdpFWiaNL2E3AmbVKmZNdHgoCWulLmeg3t3c443c9WIYGbdrKaMHJCSkXqjupyw/MrbZz6Q6QNqOBxwd3j6oRST0BprU+6CFhom1hdNyatVPTWhaJPz1x01yYbmJdFwsNo/ML3HCla20gjJGOs5i+0HVrUaa1YoVnXforOWrLVYTBRVHayzONgtNKcKQGk+UcDgSOGTxxCKaegu6zYfZwipXBpbptdZWq5LDtypuL5uzNPaU5/b3d798WtZWG1FtKVLwd0KOAT1ZPVC26wbUtw6J3PL0e7dJw+ibYU/KT8hWwpiYSk4WBvMBSVJJGUkdYPHMLJpLrCJN6Ftm9k7Z7nFFS9NpFknrlpqYZ/clzEeDOyJs8sr3vyeoc9TtRmlD7ukjW7eqE5VrZkqnPMSbLs00l4Ik5hUw1uqAUkpcKEFWQR6Iii63asP6M6e/jk7QZWryCH25ZbBnzLPrccVhIbT0Skq4AqOSDgHnCOMErtCpy0PWi7P+ilvuh2maX2yhxPJb0kl9Q+1zejQZOSk6fKJlZCVYlGEcEtS7YbQPYlIAigrvfUBjSF69pzT2mykw1JKqCqK7WldOlpLZcKFLEvuh3A8nl+lFP0I2hqlrvMVJ6k2G1R6bTFtImpmbq3SrJcSpQDbaWeJwnJypI4wJxTsFm8zdeUEUrVu/V6YaM1u/EU1NSNLQ04ZQu9H0oU8hsgKwcHCyRw5gRIWFfts6lWJJXdac+JunzQxg8HGHB5TTifRWk8CPYRkEGHXV7CWyuWWCPnnlzzdOdXTWJd+aA/NtzLqmm1HPpKSlRHDPJJjG7G1xue9dcLk00GnUrTZu21AVKderRca3SoBJaCWMrKgd4A7vLiRA5JZAlc2yCCMmvTXOiWbtG2XpVNMtrcuBtxT80XMeCKUd2WGOvpFpWnjy8XtgbS1BK5rMEEEKIIftvuNtbSGmzrq0NtolkKUtZACQJ1JJJPIAccxrj1Rd2qrun6HSKkqV0iok70FTdl3t2YuSZThXQjB3m5UcCVHBc4Y/RyPbfbbd2kNNmnW0ONrlkJWhY3kqSZ1III6wRkYj9v+2Ls2P9c/ylafSzs7p9WX+inaYVHo2sqJ8GWfRxkllzq4oOfSrXtJ/ImSul8x5qfTpGk0qWplLk2JOTlm0ssSzCAhtpCRhKUpHAADqhHFVj8tH4UiUpVZV4RQbWmZhqTk1+M3/JEFRVjkSp8BR7QlI6ocewr8trUixJG77Tn0zlPmk8jwcZcHlNOJ9FaTwI+0ZBBhE6W+nRv8KRNO3AfBqfUKtMbsw4cJ6CfSotuZ7AtaUk9W6rsh9R6fIbDidERwjMtftO6dqVoDcFDm5dC5xiVcnqc8RlTMy0gqQpJ6s4KD2hREabEFe1XlaBptcFcnnEty0jTZiYcUo4ACWlH/AJRLJJqzGLUTTYmrCL60uvzRq5CuZorkqJhhpfHoW5kKbeSnPIbwSsdiiT1x4bHVbqWmm0beGiFyObjswtwNBXJU3LEglP8ArGTvDtCBEl+D6tGeakbuviZZW3KzAl6VLKI4OKRlx3HqBU2PbkdUfNtg0Gf0y2g7O16t1kpLj7SZvcHBUzL8UhX+sZ3kfqGKyuoqXyJXnJxN12qbuqND0NNp25vLuS8ptu3qa02fGPTHDqh6gjKc9W+I0nTuyqfpzpTQ7JpYBl6XKJYKwMdK5zccPrUsqV9sYraU9I66bYCr9kHRN2hYlMblqWvOUPVGbbDjix1ZbbUEnsIEMifJPsieOb3iN5KwiVK/0xs19Me/3ZD3DqhEaV/pjZr6Y9/uyHuHVDKPHxFnwOfWktwUG2fwlt+VO461TqPI+FVhrwmoTCGGt8vpwneWQMnBwPVDq0rUfTO57rlKLQbwt6uVfo3ZhlmnzLc0ttKQAteUZ3BhQGSRnOOMJdo/RaNX/wAJlfkhXKTIVSU8JrDng87Lofb3g+nB3VgjIyePrhzqdpZZFE1ElLxt63aXRZ5iSfkXBTZNuXD7bqm1ePuAZKS3w4ekYSle31Fna5c4X/bC04/HzZxnqlJS3S1W21mrS+6nKlNJGH0D2t5VjtQIYDIj+Hmmn5dbD7aXWnElC21jIUkjBBHYRwiaS3lYYnZ3F92NdQfx12a5KkzUx0tRttw0p3KsqUyBvMK9nRnd/ZmIvU6X/LDtoWhpaB01vWa0LlryfQW+rHg7Ku30eHY4qMW0vrErsvba93WVcEyZW1Z2XdU264rCeiSlUxKr9Z3d9n+kcQx+zDblQ/ECq6qXIwW7hv6fVW3wseMzKkkSzPsCDvY/SHZEMHvJRY+Ss7mpX55q7mz/AOEzfcLhT/wePxGvf6bJdwqGwvzzV3N7pm+4XCn/AIPH4jXx9Nku4VDpdtCLss2Pa8c6LYxvZf8A5UsP701CrN/lC2NdU5CvU4zFbsG4m2nFNrO6iaSUBRbVjg3MtgndVyUn1bwS0O2Qvc2LrxHzvBU/3luL4m0bd1E0CpttXVTm5+mT9JlekbVwKT0KClaFc0rSeIUOIMJOO9LLUWLsiYsm97a1EsWSuy06iieps2jKVDgttQ8ptxPNK0ngUnl7MGMO0eY6Pbz13Vjqpx/tN5jA1s6jbE2tXTNmYrtgVh3dPoonEDqPU1NoTyPJYHZ5O67Pty0G9tq3WK8LZnUzlKqUtR3mHgCk8WFbyVA8QpKgUkdRBhFPeaT1Bxsm0Ms++zLSrkzMOpaZaQVuOLOAhIGSSewAExzb1Ytyv6g6aVvapln5tlb90hmnIHAMUxrDMu8Owh5CePrMNttVXbUKNommzreUo3Fek43b1PbQcKw6QHVD1BB3c9W+IratJNe1aEfki8N0mFu/BnwSEiUn+kCN3G/vb2N/e8fexje44hanWyCGWZsWkt+S+pei9vXqwUhdQlEqmW0/9VMJ8R5H2LSr7MRdISjYdvCeoF0XfoncRLE5JzDk9LMuHBS62roZlsfaG1/2jDrw+nLejcbJWdhEdomi3Nq5rVSblt9mlyUpbrYlQ3PzbgcecRMF1SsIaISk4SBxJ5w21CqlB1g0zqEvWrfQumThXJTchNKDqHBugniAPnDB4EEAjBggiOm+sx0tEK63pTqdsv6qu1vTO56VVbTqivzlGrLrranUDklwoQodInOEvJwcc0kZB0e9NNbY2sdN0VeYlFWxc1MWqVlZ9CxMpGQFFpzgguNEnsSpJyRzIJBAlm48BW8k+JmzG0Rqns7uiwNTqbR73bp4DDFSkp51iZ3BwSHFLaIcwMDJAV2lXOLshy/9ra0Eybk5TbH09U6g1CXkX1zlSqAB3g2VqbQ22jIB4b3EDORwgghkJNy3XoOkkldDHWra1Csqzqfa1tU9uQpcg0GmGG+OBzJJPFSiSSVHiSSTFK2grElNRNnS5qBMKbbfalVT8o8sZDT7ALiD6gd0pPqUYIIsSStYhWp47OlhSWnmzhbVHli2uYmpZNTnHkDAdffSHFH2AFKB6kCNGrFRbpFvT1VdbU6iUYW+pCTgqCRnAgggWUcgebETk6fdUrtmua+mVpC6Y5Prf+D/AAxwPhlUv0A49Du74GFYzjqz1w5pvqVTpP8Aj34A8ZcMB/wbfG/5e7jOMc4IIhpvUfPgI7bNG1RsfaMqus1KZtWZXUpmceXTpmdfALUysq3CtLOQoeLxHWOXGNvoGrGqep+qFs2s9Rbat6lIqLc/UHpOozEy++2wS70SN5lAAUpKc55jIgghsHwHtLUt+qtE1iqG0Jp9M2TfbFFtlLg+EacpakmZKHN93eSEEOBTWEgFQwcnrzG4QQRPHVkT0Qsm0/obT9TNStNquqYalTMVVNEqROd56VKVvgJwPKAadSM/956oZaXYYlZNqWlWUMsNIDbbaBhKEgYCQOwAAQQQRSTbBvJGf603K7QtLahISkkmZnKxLP06WLjvRttuOMqSFLISo7ozngMwtmy0xW9D5iq0C4pSQqDVemJXoHqfNLKmloBbO8lbScghYOQeowQRHN9dD4rqmm7V8xU7r06m9JqJLyyJypCXmnJycfU20hpDu+QAlCiVEoA7OMXrQ68Jmv6fSdAqNPRLVGhSMtJTTjL3StPLSjc3kEpSQDuZwR14gghU+uNt1S6XhZ9u35Zk9a11UxqoUycRuOsucCD1KSrmlaTxChxBhfdnvS1zQfUPVemOVJNWkWZORnpR0DdeUxiZUEuDGAsbpBIyDz4ZwCCHSSumInk0Vyq3NWrs2rLV1RrtJkTatAYdYplMROKXMJfcBBmFgtBG9kjgDwCU8SYcLHDEEEJSd73FnwEc1ZsW6rV24HNU9PXKRLrYdYm5iWnJhxsTDpaCX0kIbVhDiCAeOcknshiJDXWnzdNZmV27NNrWnKkCYSoJPIgHdGfbgQQQyLtJ2HNXSP/Z" alt="Logo">
-    <p class="sub">Đăng nhập để xem Dashboard Vận hành Xử lý Nước thải</p>
-    <input type="text" id="username" placeholder="Tài khoản">
-    <input type="password" id="password" placeholder="Mật khẩu">
-    <button id="loginBtn" onclick="doLogin()">Đăng nhập</button>
-    <div class="login-msg" id="loginMsg"></div>
-    <div class="login-demo" onclick="loadDemo()">Xem thử với dữ liệu demo (bỏ qua đăng nhập)</div>
-    <div class="api-cfg">🔧 Backend: <span id="apiStatus">chưa cấu hình API_URL</span><br>Sửa biến <code>API_URL</code> ở đầu script để nối với Google Apps Script của bạn.</div>
-  </div>
-</div>
-
-<div id="loadingOverlay" style="display:none;">⏳ Đang tải dữ liệu từ Google Sheets...</div>
-
-<div class="app" id="app">
-  <div class="sidebar">
-    <div class="brand"><img src="data:image/jpeg;base64,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" alt="Logo"></div>
-
-    <div class="nav" id="navMenu">
-      <a class="active" data-page="overview" onclick="showPage('overview','Tổng quan')"><span class="ic">🏠</span> Tổng quan</a>
-      <a data-page="nhap_lieu" onclick="showPage('nhap_lieu','Nhân viên nhập liệu')"><span class="ic">📝</span> Nhân viên nhập liệu</a>
-      <a data-page="baocao_vanhanh" onclick="showPage('baocao_vanhanh','Báo cáo Vận hành')"><span class="ic">📊</span> Báo cáo Vận hành</a>
-      <a data-page="luu_luong" onclick="showPage('luu_luong','Phân tích Lưu lượng')"><span class="ic">💧</span> Phân tích Lưu lượng</a>
-      <a data-page="hoa_chat" onclick="showPage('hoa_chat','Hóa chất & Tồn kho')"><span class="ic">🧴</span> Hóa chất & Tồn kho</a>
-      <a data-page="chat_luong" onclick="showPage('chat_luong','Chất lượng Xử lý')"><span class="ic">🧪</span> Chất lượng Xử lý</a>
-      <a data-page="xu_huong" onclick="showPage('xu_huong','Phân tích Xu hướng')"><span class="ic">📈</span> Phân tích Xu hướng</a>
-      <a data-page="ke_hoach" onclick="showPage('ke_hoach','Kế hoạch vs Thực tế')"><span class="ic">🎯</span> Kế hoạch vs Thực tế</a>
-      <a data-page="chenh_lech" onclick="showPage('chenh_lech','Phân tích Chênh lệch')"><span class="ic">🔀</span> Phân tích Chênh lệch</a>
-      <a data-page="baocao" onclick="showPage('baocao','Báo cáo')"><span class="ic">📄</span> Báo cáo</a>
-      <a data-page="canh_bao" onclick="showPage('canh_bao','Cảnh báo')"><span class="ic">🔔</span> Cảnh báo</a>
-      <a data-page="cai_dat" onclick="showPage('cai_dat','Cài đặt')"><span class="ic">⚡</span> Cài đặt</a>
-    </div>
-
-    <div class="userbadge-v2">
-      <div class="avatar-circle">👤</div>
-      <b id="userName">—</b><span class="role" id="userRole">—</span>
-      <div class="shift-badge" id="shiftBadge">Chưa có dữ liệu ca</div>
-      <button class="logout-btn-v2" onclick="doLogout()">Đăng xuất ⏻</button>
-    </div>
-
-    <div class="dataasof">📅 Cập nhật: <span id="dataAsOf">—</span></div>
-  </div>
-
-  <div class="main">
-    <div class="topbar">
-      <div class="title">
-        <h1>PHÂN TÍCH <span>VẬN HÀNH XỬ LÝ NƯỚC THẢI</span></h1>
-        <p>Trạm xử lý nước thải &amp; hệ thống RO — Nhà máy dệt nhuộm You Young Vina</p>
-      </div>
-      <div class="filters">
-        <div class="filter static">🏭 Nhà máy<b>Dệt nhuộm You Young Vina</b></div>
-        <div class="filter">
-          <span style="font-size:10px;">👁 Xem theo</span>
-          <select id="viewMode" onchange="onViewModeChange()">
-            <option value="ca">Ca</option>
-            <option value="ngay">Ngày</option>
-            <option value="tuan">Tuần</option>
-            <option value="thang" selected>Tháng</option>
-            <option value="nam">Năm</option>
-            <option value="khoang">Khoảng thời gian</option>
-          </select>
-        </div>
-        <div class="filter" id="viewModeExtra"></div>
-        <button class="reset" onclick="refreshData()">🔄 Làm mới dữ liệu</button>
-      </div>
-    </div>
-
-    <div class="kpi-row" id="kpiRow"></div>
-
-    <h3 id="pageTitle">🏠 TỔNG QUAN</h3>
-    <div class="page-grid" id="pageContent"></div>
-  </div>
-
-  <!-- Hidden store holding all panels; moved into #pageContent depending on selected page -->
-  <div id="panelStore">
-    <div class="panel wide" id="panel-p1">
-      <h3>LƯU LƯỢNG ĐẦU VÀO — UF & RO
-        <select id="flowViewMode" onchange="renderFlowChart()" style="background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:10px;padding:3px 6px;">
-          <option value="ca">Theo ca</option>
-          <option value="ngay">Theo ngày</option>
-          <option value="tuan">Theo tuần</option>
-          <option value="thang" selected>Theo tháng</option>
-        </select>
-      </h3>
-      <div class="chart-wrap"><canvas id="flowTrend"></canvas></div>
-    </div>
-    <div class="panel" id="panel-p2"><h3>THÀNH PHẦN NƯỚC THẢI ĐẦU VÀO</h3>
-      <div class="chart-wrap"><canvas id="influentDonut"></canvas><div class="donut-center" id="influentCenter"><b>—</b><span>Tổng lưu lượng</span></div></div>
-      <div class="legend" id="legend1"></div>
-    </div>
-    <div class="panel" id="panel-p4">
-      <h3>XU HƯỚNG TỶ LỆ RECOVERY — RO & UF (%)
-        <select id="recoveryViewMode" onchange="renderEfficiencyTrend()" style="background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:10px;padding:3px 6px;">
-          <option value="ca">Theo ca</option>
-          <option value="ngay">Theo ngày</option>
-          <option value="tuan">Theo tuần</option>
-          <option value="thang" selected>Theo tháng</option>
-        </select>
-      </h3>
-      <div class="chart-wrap"><canvas id="efficiencyTrend"></canvas></div>
-    </div>
-
-    <div class="panel wide tall" id="panel-p5">
-      <h3>BẢNG TỔNG HỢP VẬN HÀNH (Operating Summary)</h3>
-      <div style="overflow-x:auto;"><table><thead><tr><th>Chỉ tiêu</th><th>Kỳ này</th><th>Kỳ trước</th><th>Chênh lệch</th><th>%</th></tr></thead><tbody id="summaryBody"></tbody></table></div>
-    </div>
-    <div class="panel eq" id="panel-p6"><h3>LƯU LƯỢNG THEO HỆ UF / RO</h3><div id="lineContribution"></div></div>
-    <div class="panel" id="panel-p7"><h3>CHÊNH LỆCH CHI PHÍ HÓA CHẤT (so với kỳ trước)</h3><div class="chart-wrap"><canvas id="waterfall"></canvas></div></div>
-
-    <div class="panel eq" id="panel-p8">
-      <h3>LƯU LƯỢNG ĐẦU VÀO
-        <select id="volViewMode" onchange="renderVolMonth()" style="background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:10px;padding:3px 6px;">
-          <option value="thang">Theo tháng</option>
-          <option value="tuan">Theo tuần</option>
-        </select>
-      </h3>
-      <div class="chart-wrap"><canvas id="volMonth"></canvas></div>
-    </div>
-    <div class="panel eq" id="panel-p9">
-      <h3>TỔNG HÓA CHẤT SỬ DỤNG
-        <select id="chemViewMode" onchange="renderChemByMode()" style="background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:10px;padding:3px 6px;">
-          <option value="ca">Theo ca</option>
-          <option value="ngay">Theo ngày</option>
-          <option value="tuan">Theo tuần</option>
-          <option value="thang" selected>Theo tháng</option>
-        </select>
-      </h3>
-      <div class="chart-wrap"><canvas id="chemTrend"></canvas></div>
-    </div>
-    <div class="panel full" id="panel-p10">
-      <h3>CHỈ SỐ CHẤT LƯỢNG NƯỚC RO (pH · TDS · Độ màu · Độ đục · ORP)
-        <select id="qualityViewMode" onchange="renderWaterQualityTrend()" style="background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:10px;padding:3px 6px;">
-          <option value="ca">Theo ca</option>
-          <option value="ngay">Theo ngày</option>
-          <option value="tuan">Theo tuần</option>
-          <option value="thang" selected>Theo tháng</option>
-        </select>
-      </h3>
-      <div class="chart-wrap"><canvas id="effMonth"></canvas></div>
-    </div>
-    <div class="panel" id="panel-p11">
-      <h3>RECOVERY THỰC TẾ vs MỤC TIÊU (YTD)</h3>
-      <div class="chart-wrap"><canvas id="gauge"></canvas></div>
-      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--gray);margin-top:4px;" id="complianceLine"></div>
-    </div>
-
-    <div class="panel" id="panel-pChemUsage"><h3>SỬ DỤNG HÓA CHẤT HÔM NAY (theo loại)</h3><div class="chart-wrap"><canvas id="chemUsageChart"></canvas></div></div>
-    <div class="panel" id="panel-pChemInventory"><h3>TỒN KHO HÓA CHẤT HIỆN TẠI</h3><div id="chemInventoryList"></div></div>
-    <div class="panel wide" id="panel-pChemStockIn">
-      <h3>LỊCH SỬ NHẬP KHO HÓA CHẤT</h3>
-      <div style="overflow-x:auto;"><table><thead><tr><th>Ngày</th><th>Hóa chất</th><th>Số lượng</th><th>Nhà cung cấp</th><th>Ghi chú</th></tr></thead><tbody id="stockInBody"></tbody></table></div>
-    </div>
-
-    <div class="panel wide" id="panel-pAlerts"><h3>CẢNH BÁO HỆ THỐNG</h3><div id="alertsList"></div></div>
-    <div class="panel wide" id="panel-pSettings"><h3>THÔNG TIN TÀI KHOẢN & HỆ THỐNG</h3><div id="settingsList"></div></div>
-
-    <div class="panel wide tall" id="panel-pDataEntry">
-      <h3>NHÂN VIÊN NHẬP LIỆU — BÁO CÁO CA</h3>
-      <div class="entry-form">
-        <div class="ef-row">
-          <label>Ngày</label><input type="date" id="ef_date">
-          <label>Ca</label>
-          <select id="ef_shift"><option value="Ca ngày">Ca ngày (7:00–19:00)</option><option value="Ca tối">Ca tối (19:00–7:00)</option></select>
-          <label>Nhân viên</label><input type="text" id="ef_fullname" readonly style="min-width:160px;">
-        </div>
-
-        <h4>Số liệu vận hành</h4>
-        <div class="ef-grid">
-          <div><label>Lưu lượng nước thải đầu vào (m³)</label><input type="number" id="ef_influent"></div>
-          <div><label>Nước sạch RO (m³)</label><input type="number" id="ef_ro"></div>
-          <div><label>Nước bơm cho YY (m³)</label><input type="number" id="ef_pumpyy"></div>
-          <div><label>pH RO</label><input type="number" step="0.1" id="ef_ph"></div>
-          <div><label>TDS RO (ppm)</label><input type="number" id="ef_tds"></div>
-          <div><label>ORP RO (mV)</label><input type="number" id="ef_orp"></div>
-          <div><label>Độ màu RO (Pt-Co)</label><input type="number" id="ef_color"></div>
-        </div>
-
-        <h4>Hóa chất sử dụng trong ca (lít)</h4>
-        <div class="ef-grid">
-          <div><label>PAC 10%</label><input type="number" id="ef_pac"></div>
-          <div><label>Polymer 0.05%</label><input type="number" id="ef_polymer"></div>
-          <div><label>NaOH 10%</label><input type="number" id="ef_naoh"></div>
-          <div><label>Javen 10%</label><input type="number" id="ef_javen"></div>
-          <div><label>HCl 10%</label><input type="number" id="ef_hcl"></div>
-          <div><label>Citric Acid</label><input type="number" id="ef_citric"></div>
-          <div><label>Genesys LS (chống cáu cặn)</label><input type="number" id="ef_genesys"></div>
-        </div>
-
-        <h4>Công việc phải làm trong ca</h4>
-        <div class="ef-tasks" id="ef_tasks">
-          <label><input type="checkbox" value="Kiểm tra áp lực bơm RO">Kiểm tra áp lực bơm RO</label>
-          <label><input type="checkbox" value="Vệ sinh lọc UF">Vệ sinh lọc UF</label>
-          <label><input type="checkbox" value="Ghi chỉ số đồng hồ nước">Ghi chỉ số đồng hồ nước</label>
-          <label><input type="checkbox" value="Kiểm tra tồn kho hóa chất">Kiểm tra tồn kho hóa chất</label>
-          <label><input type="checkbox" value="Kiểm tra pH/TDS/ORP đầu ra">Kiểm tra pH/TDS/ORP đầu ra</label>
-          <label><input type="checkbox" value="Báo cáo sự cố (nếu có)">Báo cáo sự cố (nếu có)</label>
-        </div>
-
-        <h4>Ghi chú thêm</h4>
-        <textarea id="ef_notes" rows="3" placeholder="Ghi chú sự cố, bất thường trong ca..."></textarea>
-
-        <div class="ef-actions">
-          <button class="btn-save" onclick="saveEntry()">💾 Lưu báo cáo</button>
-          <button class="btn-clear" onclick="clearEntryForm()">🗑️ Xóa / Làm mới form</button>
-        </div>
-        <div id="ef_msg" class="ef-msg"></div>
-      </div>
-
-      <h4 style="margin-top:18px;">Lịch sử báo cáo gần đây</h4>
-      <div style="overflow-x:auto;"><table><thead><tr><th>Ngày</th><th>Ca</th><th>Nhân viên</th><th>NT đầu vào</th><th>Nước RO</th><th>pH</th><th>Ghi chú</th></tr></thead><tbody id="entriesBody"></tbody></table></div>
-    </div>
-  </div>
-</div>
-
-<script>
-const API_URL = "https://script.google.com/macros/s/AKfycbzaUgl85bPHflwrUzRqikTonzI2H0UlDXUlH6Z1enOnTpMPkqcPGAQ9Fx4P6I-aJcI5/exec";
-
-let currentUser = null;
-let charts = {};
-let lastData = null;
-document.getElementById('apiStatus').textContent = isApiConfigured() ? 'đã cấu hình' : 'chưa cấu hình API_URL (đang ở chế độ demo)';
-
-function isApiConfigured(){ return API_URL && API_URL.indexOf('PASTE_YOUR') === -1; }
-
-/* ================= KPI ICON SET (SVG, line-style, 3D glow sphere via CSS) ================= */
-const KPI_ICONS = {
-  influent: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.7s6.5 7.6 6.5 12.3a6.5 6.5 0 0 1-13 0C5.5 10.3 12 2.7 12 2.7z"/></svg>`,
-  ro_clean: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="21 3 3 3 10 12.5 10 19 14 21 14 12.5 21 3"/></svg>`,
-  pump_yy: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="11 16 15 12 11 8"/><line x1="7" y1="12" x2="15" y2="12"/></svg>`,
-  recovery: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 4 22 9 17 9"/><polyline points="2 19 2 14 7 14"/><path d="M3.6 9a8.5 8.5 0 0 1 14-3.2L22 9M2 14l4.4 3.2A8.5 8.5 0 0 0 20.4 14"/></svg>`,
-  ph: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2v6.2L4.3 17a2.3 2.3 0 0 0 2 3.4h11.4a2.3 2.3 0 0 0 2-3.4L15 8.2V2"/><line x1="9" y1="2" x2="15" y2="2"/><line x1="7.5" y1="14" x2="16.5" y2="14"/></svg>`,
-  tds: `<svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="6" cy="7" r="2.1" fill="currentColor" stroke="none"/><circle cx="18" cy="7" r="2.1" fill="currentColor" stroke="none"/><circle cx="12" cy="18" r="2.1" fill="currentColor" stroke="none"/><line x1="7.3" y1="8.6" x2="10.8" y2="16"/><line x1="16.7" y1="8.6" x2="13.2" y2="16"/><line x1="8.1" y1="7" x2="15.9" y2="7"/></svg>`,
-  orp: `<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="13 2 4 14 11 14 10 22 20 9 13 9 13 2"/></svg>`,
-  color: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18c1.2 0 1.7-.8 1.7-1.6 0-.4-.2-.8-.4-1.1-.2-.3-.4-.6-.4-1 0-.8.6-1.3 1.3-1.3h1.6A4.8 4.8 0 0 0 21 11.2C21 6.7 17 3 12 3z"/><circle cx="7.3" cy="10.5" r="1.15" fill="currentColor" stroke="none"/><circle cx="9.8" cy="7" r="1.15" fill="currentColor" stroke="none"/><circle cx="14.6" cy="7.3" r="1.15" fill="currentColor" stroke="none"/><circle cx="16.7" cy="11" r="1.15" fill="currentColor" stroke="none"/></svg>`
-};
-function kpiIconHtml(k){ return KPI_ICONS[k.id] || `<span style="font-size:17px;">${k.icon||'📊'}</span>`; }
-
-
-/* ================= VIEW MODE (Ca/Ngày/Tuần/Tháng/Năm/Khoảng thời gian) ================= */
-function onViewModeChange(){
-  const mode = document.getElementById('viewMode').value;
-  const extra = document.getElementById('viewModeExtra');
-  const today = new Date().toISOString().slice(0,10);
-  if(mode==='ca'){
-    extra.innerHTML = `<select id="vm_ca"><option>Ca ngày</option><option>Ca tối</option></select>`;
-  } else if(mode==='ngay'){
-    extra.innerHTML = `<input type="date" id="vm_date" value="${today}">`;
-  } else if(mode==='tuan'){
-    extra.innerHTML = `<input type="week" id="vm_week">`;
-  } else if(mode==='thang'){
-    extra.innerHTML = `<input type="month" id="vm_month" value="${today.slice(0,7)}">`;
-  } else if(mode==='nam'){
-    extra.innerHTML = `<input type="number" id="vm_year" style="width:70px;" value="${new Date().getFullYear()}">`;
-  } else if(mode==='khoang'){
-    extra.innerHTML = `<input type="date" id="vm_from" style="width:118px;">–<input type="date" id="vm_to" style="width:118px;">`;
-  }
+  return jsonResponse({ error: 'Invalid or missing action parameter' });
 }
 
-/* ================= NAVIGATION ================= */
-const ALL_PANEL_IDS = ['p1','p2','p4','p5','p6','p7','p8','p9','p10','p11','pChemUsage','pChemInventory','pChemStockIn','pAlerts','pSettings','pDataEntry'];
-const PAGE_ICON = {overview:'🏠',nhap_lieu:'📝',baocao_vanhanh:'📊',luu_luong:'💧',hoa_chat:'🧴',chat_luong:'🧪',xu_huong:'📈',ke_hoach:'🎯',chenh_lech:'🔀',baocao:'📄',canh_bao:'🔔',cai_dat:'⚡'};
-const PAGES = {
-  overview:       ['p1','p4','p5','p6','p8','p9','p10'],
-  nhap_lieu:      ['pDataEntry'],
-  baocao_vanhanh: ['p5','p8','p11'],
-  luu_luong:      ['p1','p8','p6','p2'],
-  hoa_chat:       ['p9','pChemUsage','pChemInventory','pChemStockIn'],
-  chat_luong:     ['p4','p10','p11'],
-  xu_huong:       ['p1','p4','p9','p10'],
-  ke_hoach:       ['p11','p5'],
-  chenh_lech:     ['p7','p5'],
-  baocao:         ['p5'],
-  canh_bao:       ['pAlerts'],
-  cai_dat:        ['pSettings']
-};
+function doPost(e) {
+  var body;
+  try {
+    body = JSON.parse(e.postData.contents);
+  } catch (err) {
+    return jsonResponse({ success: false, message: 'Dữ liệu gửi lên không hợp lệ' });
+  }
 
-function showPage(key, label){
-  const store = document.getElementById('panelStore');
-  const content = document.getElementById('pageContent');
-  ALL_PANEL_IDS.forEach(id=>{
-    const el = document.getElementById('panel-'+id);
-    if(el) store.appendChild(el);
+  if (body.action === 'login') {
+    return jsonResponse(checkLogin(body.username, body.password));
+  }
+  if (body.action === 'saveEntry') {
+    return jsonResponse(saveDailyEntry(body.entry));
+  }
+  return jsonResponse({ success: false, message: 'Invalid action' });
+}
+
+function checkLogin(username, password) {
+  if (!username || !password) {
+    return { success: false, message: 'Vui lòng nhập tài khoản và mật khẩu' };
+  }
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_USERS);
+  if (!sheet) return { success: false, message: 'Chưa tạo tab Users' };
+
+  var data = sheet.getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) {
+    var row = data[i];
+    if (String(row[0]).trim() === String(username).trim() &&
+        String(row[1]).trim() === String(password).trim()) {
+      return { success: true, username: row[0], fullname: row[2], role: row[3] };
+    }
+  }
+  return { success: false, message: 'Sai tài khoản hoặc mật khẩu' };
+}
+
+/**
+ * Ghi 1 dòng báo cáo ca vào tab DailyEntries.
+ * entry là 1 object JSON gửi từ dashboard, các field tương ứng đúng thứ tự cột.
+ * Nếu tab DailyEntries chưa có, hàm sẽ tự tạo tab + tiêu đề cột.
+ */
+function saveDailyEntry(entry) {
+  if (!entry) return { success: false, message: 'Không có dữ liệu để lưu' };
+
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(SHEET_DAILY_ENTRIES);
+  var headers = [
+    'timestamp','date','shift','username','fullname',
+    'influent_m3','ro_permeate_m3','pump_to_yy_m3','recovery_pct',
+    'ph_ro','tds_ro','orp_ro','color_ro','turbidity_ro',
+    'chem_pac','chem_polymer','chem_naoh','chem_javen','chem_hcl','chem_citric','chem_genesys',
+    'tasks_done','notes'
+  ];
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEET_DAILY_ENTRIES);
+    sheet.appendRow(headers);
+  }
+
+  var row = headers.map(function(h){
+    if (h === 'timestamp') return new Date().toISOString();
+    return entry[h] !== undefined ? entry[h] : '';
   });
-  (PAGES[key]||[]).forEach(id=>{
-    const el = document.getElementById('panel-'+id);
-    if(el) content.appendChild(el);
-  });
-  document.querySelectorAll('.nav a').forEach(a=>a.classList.remove('active'));
-  const navEl = document.querySelector(`.nav a[data-page="${key}"]`);
-  if(navEl) navEl.classList.add('active');
-  document.getElementById('pageTitle').textContent = (PAGE_ICON[key]||'📌') + ' ' + (label||'').toUpperCase();
-  requestAnimationFrame(()=>{ Object.values(charts).forEach(c=>{ try{ c.resize(); }catch(e){} }); });
+  sheet.appendRow(row);
+  return { success: true, message: 'Đã lưu báo cáo ca thành công' };
 }
 
-/* ================= LOGIN ================= */
-async function doLogin(){
-  const username = document.getElementById('username').value.trim();
-  const password = document.getElementById('password').value.trim();
-  const msg = document.getElementById('loginMsg');
-  const btn = document.getElementById('loginBtn');
-  msg.textContent = '';
-  if(!username || !password){ msg.textContent = 'Vui lòng nhập đầy đủ tài khoản và mật khẩu'; return; }
-  if(!isApiConfigured()){ msg.textContent = 'Chưa cấu hình API_URL — bấm "Xem thử với dữ liệu demo" bên dưới.'; return; }
-
-  btn.disabled = true; btn.textContent = 'Đang kiểm tra...';
-  try{
-    const res = await fetch(API_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify({action:'login', username, password})});
-    const data = await res.json();
-    if(data.success){ currentUser = data; enterApp(); await loadRealData(); }
-    else { msg.textContent = data.message || 'Sai tài khoản hoặc mật khẩu'; }
-  }catch(err){ msg.textContent = 'Không kết nối được tới Apps Script. Kiểm tra lại URL / quyền deploy.'; }
-  btn.disabled = false; btn.textContent = 'Đăng nhập';
-}
-
-function loadDemo(){
-  currentUser = {fullname:'Người dùng Demo', role:'Xem thử', username:'demo'};
-  enterApp();
-  renderDashboard(JSON.parse(JSON.stringify(DEMO_DATA)));
-}
-
-function enterApp(){
-  document.getElementById('loginScreen').style.display = 'none';
-  document.getElementById('app').classList.add('visible');
-  document.getElementById('userName').textContent = currentUser.fullname || currentUser.username;
-  document.getElementById('userRole').textContent = currentUser.role || '';
-  document.getElementById('ef_date').value = new Date().toISOString().slice(0,10);
-  document.getElementById('ef_fullname').value = currentUser.fullname || currentUser.username || '';
-  onViewModeChange();
-  showPage('overview','Tổng quan');
-}
-
-function doLogout(){
-  currentUser = null;
-  Object.values(charts).forEach(c=>c.destroy());
-  charts = {};
-  document.getElementById('app').classList.remove('visible');
-  document.getElementById('loginScreen').style.display = 'flex';
-  document.getElementById('username').value=''; document.getElementById('password').value='';
-}
-
-async function loadRealData(){
-  document.getElementById('loadingOverlay').style.display = 'flex';
-  try{
-    const res = await fetch(API_URL + '?action=getData');
-    const data = await res.json();
-    renderDashboard(data);
-  }catch(err){
-    alert('Không tải được dữ liệu từ Google Sheets. Đang hiển thị dữ liệu demo tạm thời.');
-    renderDashboard(JSON.parse(JSON.stringify(DEMO_DATA)));
+function sheetToObjects(sheetName) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+  if (!sheet) return [];
+  var values = sheet.getDataRange().getValues();
+  if (values.length < 2) return [];
+  var headers = values[0];
+  var rows = [];
+  for (var i = 1; i < values.length; i++) {
+    var obj = {};
+    var isEmpty = true;
+    for (var j = 0; j < headers.length; j++) {
+      obj[headers[j]] = values[i][j];
+      if (values[i][j] !== '' && values[i][j] !== null) isEmpty = false;
+    }
+    if (!isEmpty) rows.push(obj);
   }
-  document.getElementById('loadingOverlay').style.display = 'none';
+  return rows;
 }
 
-function refreshData(){
-  if(isApiConfigured() && currentUser && currentUser.username !== 'demo'){ loadRealData(); }
-  else if(lastData){ renderDashboard(lastData); }
+// Lấy N dòng cuối cùng của 1 tab (dùng cho DailyEntries - chỉ cần xem gần đây)
+function sheetToObjectsLastN(sheetName, n) {
+  var all = sheetToObjects(sheetName);
+  if (all.length <= n) return all;
+  return all.slice(all.length - n);
 }
 
-/* ================= DATA ENTRY FORM ================= */
-function collectTasksDone(){
-  return Array.from(document.querySelectorAll('#ef_tasks input[type=checkbox]:checked')).map(cb=>cb.value).join(', ');
-}
-
-function clearEntryForm(){
-  ['ef_influent','ef_ro','ef_pumpyy','ef_ph','ef_tds','ef_orp','ef_color','ef_pac','ef_polymer','ef_naoh','ef_javen','ef_hcl','ef_citric','ef_genesys'].forEach(id=>{
-    document.getElementById(id).value = '';
-  });
-  document.getElementById('ef_notes').value = '';
-  document.querySelectorAll('#ef_tasks input[type=checkbox]').forEach(cb=>cb.checked=false);
-  document.getElementById('ef_date').value = new Date().toISOString().slice(0,10);
-  document.getElementById('ef_msg').textContent = '';
-}
-
-async function saveEntry(){
-  const msg = document.getElementById('ef_msg');
-  const entry = {
-    date: document.getElementById('ef_date').value,
-    shift: document.getElementById('ef_shift').value,
-    username: currentUser ? currentUser.username : '',
-    fullname: currentUser ? currentUser.fullname : '',
-    influent_m3: document.getElementById('ef_influent').value,
-    ro_permeate_m3: document.getElementById('ef_ro').value,
-    pump_to_yy_m3: document.getElementById('ef_pumpyy').value,
-    ph_ro: document.getElementById('ef_ph').value,
-    tds_ro: document.getElementById('ef_tds').value,
-    orp_ro: document.getElementById('ef_orp').value,
-    color_ro: document.getElementById('ef_color').value,
-    chem_pac: document.getElementById('ef_pac').value,
-    chem_polymer: document.getElementById('ef_polymer').value,
-    chem_naoh: document.getElementById('ef_naoh').value,
-    chem_javen: document.getElementById('ef_javen').value,
-    chem_hcl: document.getElementById('ef_hcl').value,
-    chem_citric: document.getElementById('ef_citric').value,
-    chem_genesys: document.getElementById('ef_genesys').value,
-    tasks_done: collectTasksDone(),
-    notes: document.getElementById('ef_notes').value
+function getAllData() {
+  return {
+    kpis: sheetToObjects('KPIs'),
+    monthlyTrend: sheetToObjects('MonthlyTrend'),
+    influent: sheetToObjects('Influent'),
+    operatingSummary: sheetToObjects('OperatingSummary'),
+    lineContribution: sheetToObjects('LineContribution'),
+    costVariance: sheetToObjects('CostVariance'),
+    compliance: sheetToObjects('Compliance'),
+    chemicalUsage: sheetToObjects('ChemicalUsage'),
+    chemicalInventory: sheetToObjects('ChemicalInventory'),
+    chemicalStockIn: sheetToObjects('ChemicalStockIn'),
+    dailyEntries: sheetToObjectsLastN('DailyEntries', 30),
+    updatedAt: new Date().toISOString()
   };
-  if(!entry.date || !entry.shift){ msg.style.color='var(--red)'; msg.textContent='Vui lòng chọn ngày và ca.'; return; }
-
-  if(isApiConfigured() && currentUser && currentUser.username!=='demo'){
-    try{
-      const res = await fetch(API_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify({action:'saveEntry', entry})});
-      const data = await res.json();
-      if(data.success){ msg.style.color='var(--green)'; msg.textContent = data.message; clearEntryForm(); await loadRealData(); }
-      else { msg.style.color='var(--red)'; msg.textContent = data.message || 'Lưu thất bại'; }
-    }catch(e){ msg.style.color='var(--red)'; msg.textContent='Không kết nối được backend.'; }
-  } else {
-    entry.timestamp = new Date().toISOString();
-    if(!lastData) lastData = JSON.parse(JSON.stringify(DEMO_DATA));
-    lastData.dailyEntries = lastData.dailyEntries || [];
-    lastData.dailyEntries.push(entry);
-    msg.style.color='var(--orange)';
-    msg.textContent = 'Chế độ demo: đã thêm tạm vào bảng bên dưới (KHÔNG lưu thật vào Google Sheets vì chưa cấu hình API_URL).';
-    renderEntriesTable(lastData); updateShiftBadge(lastData);
-    clearEntryForm();
-  }
 }
 
-function renderEntriesTable(d){
-  const rows = (d.dailyEntries||[]).slice(-10).reverse();
-  document.getElementById('entriesBody').innerHTML = rows.map(r=>
-    `<tr><td>${r.date||''}</td><td>${r.shift||''}</td><td>${r.fullname||r.username||''}</td><td>${r.influent_m3||''}</td><td>${r.ro_permeate_m3||''}</td><td>${r.ph_ro||''}</td><td>${r.notes||''}</td></tr>`
-  ).join('') || '<tr><td colspan="7" style="color:var(--gray);">Chưa có báo cáo nào.</td></tr>';
+function jsonResponse(obj) {
+  return ContentService
+    .createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
 }
-
-function updateShiftBadge(d){
-  if(!currentUser){ return; }
-  const mine = (d.dailyEntries||[]).filter(e=>e.username===currentUser.username);
-  const badge = document.getElementById('shiftBadge');
-  if(mine.length>0){
-    const last = mine[mine.length-1];
-    badge.textContent = 'Đang trực: ' + (last.shift || '—');
-  } else {
-    badge.textContent = 'Chưa có dữ liệu ca';
-  }
-}
-
-/* ================= ALERTS & SETTINGS ================= */
-function buildAlerts(d){
-  const alerts = [];
-  (d.chemicalInventory||[]).forEach(c=>{
-    if(Number(c.current_stock) < Number(c.min_threshold)){
-      alerts.push({level:'danger', text:`🔴 Tồn kho ${c.chemical} (${c.current_stock} ${c.unit}) đang THẤP HƠN mức tối thiểu (${c.min_threshold} ${c.unit}) — cần nhập kho gấp.`});
-    }
-  });
-  const comp = (d.compliance||[])[0];
-  if(comp){
-    if(Number(comp.actual) < Number(comp.target)){
-      alerts.push({level:'warning', text:`⚠️ Tỷ lệ Recovery thực tế (${comp.actual}%) đang thấp hơn mục tiêu (${comp.target}%).`});
-    } else {
-      alerts.push({level:'ok', text:`✅ Tỷ lệ Recovery (${comp.actual}%) đang đạt/vượt mục tiêu (${comp.target}%).`});
-    }
-  }
-  if(alerts.length===0) alerts.push({level:'ok', text:'✅ Không có cảnh báo nào ở thời điểm hiện tại.'});
-  return alerts;
-}
-
-function renderAlerts(d){
-  document.getElementById('alertsList').innerHTML = buildAlerts(d).map(a=>`<div class="alert-item ${a.level}">${a.text}</div>`).join('');
-}
-
-function renderSettings(){
-  const rows = [
-    ['Tài khoản', currentUser ? (currentUser.username||'—') : '—'],
-    ['Họ tên', currentUser ? (currentUser.fullname||'—') : '—'],
-    ['Vai trò', currentUser ? (currentUser.role||'—') : '—'],
-    ['Nhà máy', 'Dệt nhuộm You Young Vina'],
-    ['Trạng thái Backend', isApiConfigured() ? 'Đã kết nối Google Apps Script' : 'Chưa cấu hình (chế độ demo)'],
-    ['Thiết bị hỗ trợ', 'Điện thoại · iPad · Laptop (mọi trình duyệt)']
-  ];
-  document.getElementById('settingsList').innerHTML = rows.map(r=>`<div class="settings-row"><span>${r[0]}</span><b>${r[1]}</b></div>`).join('');
-}
-
-/* ================= DATE / AGGREGATION HELPERS ================= */
-function parseDateSmart(s){
-  if(!s) return null;
-  s = String(s).trim();
-  let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if(m) return new Date(+m[1], +m[2]-1, +m[3]);
-  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-  if(m) return new Date(+m[3], +m[2]-1, +m[1]);
-  const d = new Date(s);
-  return isNaN(d) ? null : d;
-}
-function isoWeekLabel(date){
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-  const dayNum = d.getUTCDay() || 7;
-  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
-  const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1)/7);
-  return `Tuần ${weekNo}/${d.getUTCFullYear()}`;
-}
-function monthLabel(date){ return `T${date.getMonth()+1}/${String(date.getFullYear()).slice(2)}`; }
-function dateLabel(date){ return `${String(date.getDate()).padStart(2,'0')}/${String(date.getMonth()+1).padStart(2,'0')}`; }
-
-/* ================= UF/RO FLOW MODEL (dùng % mặc định nội bộ + gộp theo ca/ngày/tuần/tháng) ================= */
-const DEFAULT_UF_INPUT_PCT = 95;
-const DEFAULT_UF_REJECT_PCT = 10;
-
-function getFlowBuckets(mode){
-  // Trả về {labels, influent[], roPermeate[]} theo mode: ca/ngay/tuan/thang
-  if(mode==='thang'){
-    const mt = lastData.monthlyTrend||[];
-    return { labels: mt.map(r=>r.month), influent: mt.map(r=>Number(r.influent_m3||0)), roPermeate: mt.map(r=>Number(r.ro_permeate_m3||0)) };
-  }
-  const entries = lastData.dailyEntries||[];
-  if(entries.length===0){
-    return { labels:['Chưa có báo cáo ca nào'], influent:[0], roPermeate:[0] };
-  }
-  let labels = []; const infBucket = {}; const roBucket = {};
-
-  if(mode==='ca'){
-    let latestDate = null;
-    entries.forEach(e=>{ const dt=parseDateSmart(e.date); if(dt && (!latestDate || dt>latestDate)) latestDate=dt; });
-    labels = ['07:00–19:00 (Ca ngày)','19:00–07:00 (Ca tối)'];
-    labels.forEach(l=>{ infBucket[l]=0; roBucket[l]=0; });
-    entries.forEach(e=>{
-      const dt = parseDateSmart(e.date);
-      if(!dt || !latestDate || dt.getTime()!==latestDate.getTime()) return;
-      const key = (e.shift||'').indexOf('tối')>-1 ? labels[1] : labels[0];
-      infBucket[key]+=Number(e.influent_m3||0); roBucket[key]+=Number(e.ro_permeate_m3||0);
-    });
-  } else if(mode==='ngay'){
-    const monday = getMondayOfWeek(new Date());
-    const dayNames = ['Thứ 2','Thứ 3','Thứ 4','Thứ 5','Thứ 6','Thứ 7'];
-    labels = dayNames.map((n,i)=>{ const d=new Date(monday); d.setDate(monday.getDate()+i); return `${n} (${dateLabel(d)})`; });
-    labels.forEach(l=>{ infBucket[l]=0; roBucket[l]=0; });
-    entries.forEach(e=>{
-      const dt = parseDateSmart(e.date);
-      if(!dt) return;
-      const diffDays = Math.floor((dt-monday)/86400000);
-      if(diffDays<0 || diffDays>5) return;
-      const key = labels[diffDays];
-      infBucket[key]+=Number(e.influent_m3||0); roBucket[key]+=Number(e.ro_permeate_m3||0);
-    });
-  } else { // tuan
-    entries.forEach(e=>{
-      const dt = parseDateSmart(e.date);
-      if(!dt) return;
-      const key = isoWeekLabel(dt);
-      if(labels.indexOf(key)===-1) labels.push(key);
-      infBucket[key]=(infBucket[key]||0)+Number(e.influent_m3||0);
-      roBucket[key]=(roBucket[key]||0)+Number(e.ro_permeate_m3||0);
-    });
-    labels.sort();
-    if(labels.length>8) labels = labels.slice(-8);
-  }
-  return { labels, influent: labels.map(l=>infBucket[l]||0), roPermeate: labels.map(l=>roBucket[l]||0) };
-}
-
-function computeUFROSeries(influent, roPermeate){
-  const ufInput = influent.map(v=>v*DEFAULT_UF_INPUT_PCT/100);
-  const ufReject = ufInput.map(v=>v*DEFAULT_UF_REJECT_PCT/100);
-  const roInput = ufInput.map((v,i)=>v-ufReject[i]);
-  const roReject = roInput.map((v,i)=>Math.max(0, v-roPermeate[i]));
-  return {ufInput, ufReject, roInput, roReject};
-}
-
-function renderFlowChart(){
-  if(!lastData) return;
-  const mode = document.getElementById('flowViewMode')?.value || 'thang';
-  const b = getFlowBuckets(mode);
-  const s = computeUFROSeries(b.influent, b.roPermeate);
-  if(charts.flowTrend) charts.flowTrend.destroy();
-  charts.flowTrend = new Chart(document.getElementById('flowTrend'), {
-    type:'line',
-    data:{labels:b.labels, datasets:[
-      {label:'Nước thải đầu vào', data:b.influent, borderColor:'#f5811f', backgroundColor:'#f5811f', tension:.35, pointRadius:3},
-      {label:'UF đầu vào', data:s.ufInput, borderColor:'#4fc3f7', backgroundColor:'#4fc3f7', tension:.35, pointRadius:3},
-      {label:'UF Reject', data:s.ufReject, borderColor:'#e5484d', backgroundColor:'#e5484d', tension:.35, pointRadius:3, borderDash:[4,3]},
-      {label:'RO đầu vào', data:s.roInput, borderColor:'#f5f5f5', backgroundColor:'#f5f5f5', tension:.35, pointRadius:3},
-      {label:'RO Reject', data:s.roReject, borderColor:'#b388ff', backgroundColor:'#b388ff', tension:.35, pointRadius:3, borderDash:[4,3]}
-    ]},
-    options:{responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{position:'bottom',labels:{boxWidth:8,boxHeight:8,padding:8,font:{size:9.5}}}},
-      scales:{y:{grid:{color:'#26262a'},ticks:{callback:v=>(v/1000).toFixed(1)+'K'}}, x:{grid:{display:false},ticks:{font:{size:8.5}}}}}
-  });
-}
-
-/* ================= GENERIC TIME-BUCKET HELPERS (dùng chung cho nhiều biểu đồ) ================= */
-function getTimeBuckets(mode){
-  const entries = lastData.dailyEntries||[];
-  if(entries.length===0) return { labels:['Chưa có báo cáo ca nào'], groups:{'Chưa có báo cáo ca nào':[]} };
-  let labels = []; const groups = {};
-  if(mode==='ca'){
-    let latestDate=null;
-    entries.forEach(e=>{ const dt=parseDateSmart(e.date); if(dt && (!latestDate||dt>latestDate)) latestDate=dt; });
-    labels = ['07:00–19:00 (Ca ngày)','19:00–07:00 (Ca tối)'];
-    labels.forEach(l=>groups[l]=[]);
-    entries.forEach(e=>{
-      const dt = parseDateSmart(e.date);
-      if(!dt || !latestDate || dt.getTime()!==latestDate.getTime()) return;
-      const key = (e.shift||'').indexOf('tối')>-1 ? labels[1] : labels[0];
-      groups[key].push(e);
-    });
-  } else if(mode==='ngay'){
-    const monday = getMondayOfWeek(new Date());
-    const dayNames = ['Thứ 2','Thứ 3','Thứ 4','Thứ 5','Thứ 6','Thứ 7'];
-    labels = dayNames.map((n,i)=>{ const d=new Date(monday); d.setDate(monday.getDate()+i); return `${n} (${dateLabel(d)})`; });
-    labels.forEach(l=>groups[l]=[]);
-    entries.forEach(e=>{
-      const dt = parseDateSmart(e.date);
-      if(!dt) return;
-      const diffDays = Math.floor((dt-monday)/86400000);
-      if(diffDays<0 || diffDays>5) return;
-      groups[labels[diffDays]].push(e);
-    });
-  } else { // tuan
-    entries.forEach(e=>{
-      const dt = parseDateSmart(e.date);
-      if(!dt) return;
-      const key = isoWeekLabel(dt);
-      if(labels.indexOf(key)===-1) labels.push(key);
-      if(!groups[key]) groups[key]=[];
-      groups[key].push(e);
-    });
-    labels.sort();
-    if(labels.length>8) labels = labels.slice(-8);
-  }
-  return { labels, groups };
-}
-function sumField(entries, field){ return entries.reduce((a,e)=>a+Number(e[field]||0),0); }
-function avgField(entries, field){
-  const vals = entries.map(e=>Number(e[field]||0)).filter(v=>!isNaN(v) && v!==0);
-  if(vals.length===0) return 0;
-  return vals.reduce((a,b)=>a+b,0)/vals.length;
-}
-
-function renderEfficiencyTrend(){
-  if(!lastData) return;
-  const mode = document.getElementById('recoveryViewMode')?.value || 'thang';
-  let labels, roRecovery;
-  if(mode==='thang'){
-    labels = (lastData.monthlyTrend||[]).map(r=>r.month);
-    roRecovery = (lastData.monthlyTrend||[]).map(r=>Number(r.recovery_pct||0));
-  } else {
-    const b = getTimeBuckets(mode);
-    labels = b.labels;
-    roRecovery = labels.map(l=>{
-      const g = b.groups[l]||[];
-      const inf = sumField(g,'influent_m3'); const ro = sumField(g,'ro_permeate_m3');
-      return inf>0 ? (ro/inf*100) : 0;
-    });
-  }
-  const ufRecovery = labels.map(()=> 100-DEFAULT_UF_REJECT_PCT);
-  if(charts.efficiencyTrend) charts.efficiencyTrend.destroy();
-  charts.efficiencyTrend = new Chart(document.getElementById('efficiencyTrend'), {
-    type:'line',
-    data:{labels, datasets:[
-      {label:'RO Recovery (%)', data:roRecovery, borderColor:'#f5811f', backgroundColor:'rgba(245,129,31,.15)', fill:true, tension:.35, pointRadius:3},
-      {label:'UF Recovery (%)', data:ufRecovery, borderColor:'#4fc3f7', backgroundColor:'transparent', borderDash:[5,4], tension:0, pointRadius:2}
-    ]},
-    options:{responsive:true,maintainAspectRatio:false, plugins:{legend:{position:'bottom',labels:{boxWidth:8,boxHeight:8,padding:8,font:{size:9.5}}}}, scales:{y:{grid:{color:'#26262a'}}, x:{grid:{display:false},ticks:{font:{size:8.5}}}}}
-  });
-}
-
-/* ================= LƯU LƯỢNG ĐẦU VÀO: Theo tuần / Theo tháng ================= */
-function renderVolMonth(){
-  if(!lastData) return;
-  const mode = document.getElementById('volViewMode')?.value || 'thang';
-  let labels, values;
-  if(mode==='tuan'){
-    const buckets = {};
-    (lastData.dailyEntries||[]).forEach(e=>{
-      const dt = parseDateSmart(e.date);
-      if(!dt) return;
-      const key = isoWeekLabel(dt);
-      buckets[key] = (buckets[key]||0) + Number(e.influent_m3||0);
-    });
-    labels = Object.keys(buckets);
-    values = labels.map(k=>buckets[k]);
-    if(labels.length===0){ labels=['Chưa có báo cáo ca nào']; values=[0]; }
-  } else {
-    labels = (lastData.monthlyTrend||[]).map(r=>r.month);
-    values = (lastData.monthlyTrend||[]).map(r=>Number(r.influent_m3||0));
-  }
-  if(charts.volMonth) charts.volMonth.destroy();
-  charts.volMonth = new Chart(document.getElementById('volMonth'), {
-    type:'bar', data:{labels, datasets:[{data:values, backgroundColor:'#f5811f', borderRadius:4}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}, scales:{y:{grid:{color:'#26262a'},ticks:{callback:v=>(v/1000).toFixed(1)+'K'}}, x:{grid:{display:false},ticks:{font:{size:9}}}}}
-  });
-}
-
-/* ================= TỔNG HÓA CHẤT: Theo ca / ngày / tuần / tháng ================= */
-const CHEM_FIELDS = [
-  {key:'chem_pac', label:'PAC', color:'#f5811f'},
-  {key:'chem_polymer', label:'PAM', color:'#4fc3f7'},
-  {key:'chem_naoh', label:'NaOH', color:'#3ecf8e'},
-  {key:'chem_javen', label:'NaOCl', color:'#e5484d'},
-  {key:'chem_hcl', label:'HCl', color:'#b388ff'},
-  {key:'chem_citric', label:'Citric Acid', color:'#d9d9d9'},
-  {key:'chem_genesys', label:'Genesys LS', color:'#ffb066'}
-];
-
-function getMondayOfWeek(date){
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = (day===0? -6 : 1) - day;
-  d.setDate(d.getDate()+diff);
-  d.setHours(0,0,0,0);
-  return d;
-}
-
-function renderChemByMode(){
-  if(!lastData) return;
-  const mode = document.getElementById('chemViewMode')?.value || 'thang';
-  const entries = lastData.dailyEntries || [];
-
-  if(entries.length===0){
-    const labels = (lastData.monthlyTrend||[]).map(r=>r.month);
-    const totals = (lastData.monthlyTrend||[]).map(r=>Number(r.chemical_total_l||0));
-    if(charts.chemTrend) charts.chemTrend.destroy();
-    charts.chemTrend = new Chart(document.getElementById('chemTrend'), {
-      type:'line', data:{labels, datasets:[{label:'Tổng hóa chất (lít)', data:totals, borderColor:'#f5811f', backgroundColor:'rgba(245,129,31,.15)', fill:true, tension:.35, pointRadius:3}]},
-      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}, scales:{y:{grid:{color:'#26262a'}}, x:{grid:{display:false}}}}
-    });
-    return;
-  }
-
-  let labels = [];
-  const bucketsByChem = {};
-  CHEM_FIELDS.forEach(c=>bucketsByChem[c.key]={});
-
-  if(mode==='ca'){
-    // Hiển thị theo giờ trong NGÀY GẦN NHẤT có báo cáo: Ca ngày (07:00–19:00) / Ca tối (19:00–07:00)
-    let latestDate = null;
-    entries.forEach(e=>{ const dt=parseDateSmart(e.date); if(dt && (!latestDate || dt>latestDate)) latestDate=dt; });
-    labels = ['07:00–19:00 (Ca ngày)','19:00–07:00 (Ca tối)'];
-    CHEM_FIELDS.forEach(c=>{ bucketsByChem[c.key][labels[0]]=0; bucketsByChem[c.key][labels[1]]=0; });
-    entries.forEach(e=>{
-      const dt = parseDateSmart(e.date);
-      if(!dt || !latestDate || dt.getTime()!==latestDate.getTime()) return;
-      const key = (e.shift||'').indexOf('tối')>-1 ? labels[1] : labels[0];
-      CHEM_FIELDS.forEach(c=>{ bucketsByChem[c.key][key]+=Number(e[c.key]||0); });
-    });
-  } else if(mode==='ngay'){
-    // Hiển thị theo ngày trong TUẦN HIỆN TẠI: Thứ 2 -> Thứ 7
-    const monday = getMondayOfWeek(new Date());
-    const dayNames = ['Thứ 2','Thứ 3','Thứ 4','Thứ 5','Thứ 6','Thứ 7'];
-    labels = dayNames.map((n,i)=>{
-      const d = new Date(monday); d.setDate(monday.getDate()+i);
-      return `${n} (${dateLabel(d)})`;
-    });
-    CHEM_FIELDS.forEach(c=>{ labels.forEach(l=>bucketsByChem[c.key][l]=0); });
-    entries.forEach(e=>{
-      const dt = parseDateSmart(e.date);
-      if(!dt) return;
-      const diffDays = Math.floor((dt - monday)/86400000);
-      if(diffDays<0 || diffDays>5) return;
-      const key = labels[diffDays];
-      CHEM_FIELDS.forEach(c=>{ bucketsByChem[c.key][key]+=Number(e[c.key]||0); });
-    });
-  } else if(mode==='tuan'){
-    entries.forEach(e=>{
-      const dt = parseDateSmart(e.date);
-      if(!dt) return;
-      const key = isoWeekLabel(dt);
-      if(labels.indexOf(key)===-1) labels.push(key);
-      CHEM_FIELDS.forEach(c=>{ bucketsByChem[c.key][key] = (bucketsByChem[c.key][key]||0) + Number(e[c.key]||0); });
-    });
-    labels.sort();
-    if(labels.length>8) labels = labels.slice(-8);
-  } else {
-    entries.forEach(e=>{
-      const dt = parseDateSmart(e.date);
-      if(!dt) return;
-      const key = monthLabel(dt);
-      if(labels.indexOf(key)===-1) labels.push(key);
-      CHEM_FIELDS.forEach(c=>{ bucketsByChem[c.key][key] = (bucketsByChem[c.key][key]||0) + Number(e[c.key]||0); });
-    });
-    if(labels.length>12) labels = labels.slice(-12);
-  }
-
-  const datasets = CHEM_FIELDS.map(c=>({
-    label:c.label, data:labels.map(l=>bucketsByChem[c.key][l]||0), backgroundColor:c.color, borderRadius:3
-  }));
-
-  if(charts.chemTrend) charts.chemTrend.destroy();
-  charts.chemTrend = new Chart(document.getElementById('chemTrend'), {
-    type:'bar', data:{labels, datasets},
-    options:{responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{position:'bottom',labels:{boxWidth:8,boxHeight:8,padding:6,font:{size:8.5}}}},
-      scales:{y:{grid:{color:'#26262a'}}, x:{grid:{display:false},ticks:{font:{size:8}}}}}
-  });
-}
-
-/* ================= CHỈ SỐ CHẤT LƯỢNG NƯỚC RO: pH, TDS, Màu, Đục, ORP theo tháng ================= */
-function renderWaterQualityTrend(){
-  if(!lastData) return;
-  const mode = document.getElementById('qualityViewMode')?.value || 'thang';
-  let labels, ph, tds, color, orp, turbidity, hasTurbidity;
-
-  if(mode==='thang'){
-    const mt = lastData.monthlyTrend||[];
-    labels = mt.map(r=>r.month);
-    ph = mt.map(r=>Number(r.ph_ro||0));
-    tds = mt.map(r=>Number(r.tds_ro||0));
-    color = mt.map(r=>Number(r.color_ro||0));
-    turbidity = mt.map(r=>Number(r.turbidity_ro||0));
-    orp = mt.map(r=>Number(r.orp_ro||0));
-    hasTurbidity = true;
-  } else {
-    const b = getTimeBuckets(mode);
-    labels = b.labels;
-    ph = labels.map(l=>avgField(b.groups[l]||[], 'ph_ro'));
-    tds = labels.map(l=>avgField(b.groups[l]||[], 'tds_ro'));
-    color = labels.map(l=>avgField(b.groups[l]||[], 'color_ro'));
-    orp = labels.map(l=>avgField(b.groups[l]||[], 'orp_ro'));
-    turbidity = []; hasTurbidity = false; // độ đục chưa có ô nhập trong báo cáo ca hằng ngày
-  }
-
-  const datasets = [
-    {label:'pH RO', data:ph, borderColor:'#f5811f', yAxisID:'y', tension:.35, pointRadius:3},
-    {label:'TDS RO (ppm)', data:tds, borderColor:'#f5f5f5', yAxisID:'y1', tension:.35, pointRadius:3},
-    {label:'Độ màu RO (Pt-Co)', data:color, borderColor:'#9aa0a6', yAxisID:'y1', tension:.35, pointRadius:3, borderDash:[4,3]},
-    {label:'ORP RO (mV)', data:orp, borderColor:'#b388ff', yAxisID:'y2', tension:.35, pointRadius:3}
-  ];
-  if(hasTurbidity){
-    datasets.splice(3,0,{label:'Độ đục RO (NTU)', data:turbidity, borderColor:'#4fc3f7', yAxisID:'y1', tension:.35, pointRadius:3, borderDash:[2,2]});
-  }
-
-  if(charts.effMonth) charts.effMonth.destroy();
-  charts.effMonth = new Chart(document.getElementById('effMonth'), {
-    type:'line',
-    data:{labels, datasets},
-    options:{responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{position:'bottom',labels:{boxWidth:8,boxHeight:8,padding:8,font:{size:9.5}}}},
-      scales:{
-        y:{position:'left',min:0,max:14,grid:{color:'#26262a'},title:{display:true,text:'pH',color:'#9aa0a6',font:{size:9}}},
-        y1:{position:'right',grid:{display:false},title:{display:true,text:'TDS / Màu / Đục',color:'#9aa0a6',font:{size:9}}},
-        y2:{display:false},
-        x:{grid:{display:false},ticks:{font:{size:8.5}}}
-      }}
-  });
-}
-
-/* ================= RENDER DASHBOARD ================= */
-function renderDashboard(d){
-  lastData = d;
-  Object.values(charts).forEach(c=>c.destroy());
-  charts = {};
-
-  document.getElementById('dataAsOf').textContent = d.updatedAt ? new Date(d.updatedAt).toLocaleDateString('vi-VN') : '—';
-
-  const kpiRow = document.getElementById('kpiRow');
-  kpiRow.innerHTML = (d.kpis||[]).map(k=>`
-    <div class="kpi">
-      <div class="kpi-top"><div class="kpi-icon">${kpiIconHtml(k)}</div><div class="kpi-label">${k.label}</div></div>
-      <div class="kpi-value">${k.value}</div>
-      <div class="kpi-delta ${k.delta_type==='down'?'down':'up'}">${k.delta}</div>
-      <div class="kpi-sub">${k.subtext||''}</div>
-    </div>`).join('');
-
-  const months = (d.monthlyTrend||[]).map(r=>r.month);
-  const orange='#f5811f', white='#f5f5f5', gray='#6b7077', green='#3ecf8e', grid='#26262a';
-
-  renderFlowChart();
-
-  const inf = d.influent||[];
-  const infColors = ['#f5811f','#d9d9d9','#8a8a8a','#4a4a4a','#c96f1a'];
-  charts.influentDonut = new Chart(document.getElementById('influentDonut'), {
-    type:'doughnut', data:{labels:inf.map(r=>r.category), datasets:[{data:inf.map(r=>r.percent), backgroundColor:infColors, borderWidth:0}]},
-    options:{responsive:true,maintainAspectRatio:false,cutout:'68%',plugins:{legend:{display:false}}}
-  });
-  document.getElementById('legend1').innerHTML = inf.map((r,i)=>
-    `<div class="item"><span><span class="dot" style="background:${infColors[i]}"></span><span class="name">${r.category}</span></span><span class="val">${r.percent}%</span></div>`).join('');
-  const totalFlow = d.kpis && d.kpis.find(k=>k.id==='influent');
-  document.getElementById('influentCenter').innerHTML = `<b>${totalFlow?totalFlow.value:'—'}</b><span>Tổng lưu lượng</span>`;
-
-  renderEfficiencyTrend();
-
-  document.getElementById('summaryBody').innerHTML = (d.operatingSummary||[]).map(r=>{
-    const cls = r.row_type==='total'?'total':(r.row_type==='sub'?'sub':'');
-    const varClass = String(r.variance_pct||'').indexOf('▼')>-1 ? 'down-txt':'up-txt';
-    return `<tr class="${cls}"><td>${r.parameter}</td><td>${r.current}</td><td>${r.previous}</td><td>${r.variance}</td><td class="${varClass}">${r.variance_pct}</td></tr>`;
-  }).join('');
-
-  const lc = d.lineContribution||[];
-  const maxPct = Math.max(...lc.map(r=>Number(r.percent)||0), 1);
-  document.getElementById('lineContribution').innerHTML = lc.map(r=>`
-    <div class="bar-item"><div class="lbl">${r.line} <b>${Number(r.value_m3).toLocaleString()} (${r.percent}%)</b></div>
-    <div class="bar-track"><div class="bar-fill" style="width:${(r.percent/maxPct*100)}%;"></div></div></div>`).join('');
-
-  const cv = d.costVariance||[];
-  let running=0; const floatData=[]; const colors=[];
-  cv.forEach(r=>{ const start=running; running+=Number(r.delta); floatData.push([Math.min(start,running), Math.max(start,running)]); colors.push(Number(r.delta)>=0? '#e5484d' : green); });
-  floatData.push([0, running]); colors.push(running>=0? green : '#e5484d');
-  charts.waterfall = new Chart(document.getElementById('waterfall'), {
-    type:'bar', data:{labels:cv.map(r=>r.item).concat(['Chênh lệch ròng']), datasets:[{data:floatData, backgroundColor:colors, borderRadius:4, barThickness:26}]},
-    options:{responsive:true,maintainAspectRatio:false, plugins:{legend:{display:false}},
-      scales:{y:{grid:{color:grid},ticks:{callback:v=>v}}, x:{grid:{display:false},ticks:{font:{size:9}}}}}
-  });
-
-  renderVolMonth();
-  renderChemByMode();
-  renderWaterQualityTrend();
-
-  const compliance = (d.compliance||[])[0] || {actual:0, target:0};
-  charts.gauge = new Chart(document.getElementById('gauge'), {
-    type:'doughnut', data:{labels:['Đạt','Còn lại'], datasets:[{data:[Number(compliance.actual), Math.max(0,100-Number(compliance.actual))], backgroundColor:[orange,'#2a2a2d'], borderWidth:0, circumference:180, rotation:270}]},
-    options:{responsive:true,maintainAspectRatio:false,cutout:'70%',plugins:{legend:{display:false},tooltip:{enabled:false}}}
-  });
-  document.getElementById('complianceLine').innerHTML =
-    `<span>Thực tế: <b style="color:var(--white)">${compliance.actual}%</b></span>
-     <span>Mục tiêu: <b style="color:var(--white)">${compliance.target}%</b></span>
-     <span>Chênh lệch: <b class="${(compliance.actual-compliance.target)>=0?'up-txt':'down-txt'}">${(compliance.actual-compliance.target).toFixed(1)} pp</b></span>`;
-
-  // Chemical usage (aggregate today by chemical)
-  const cu = d.chemicalUsage||[];
-  const chemTotals = {};
-  cu.forEach(r=>{ const key=r.chemical; chemTotals[key] = (chemTotals[key]||0) + Number(r.amount_used||0); });
-  const chemLabels = Object.keys(chemTotals);
-  charts.chemUsageChart = new Chart(document.getElementById('chemUsageChart'), {
-    type:'bar', data:{labels:chemLabels, datasets:[{data:chemLabels.map(k=>chemTotals[k]), backgroundColor:orange, borderRadius:4}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}, scales:{y:{grid:{color:grid}}, x:{grid:{display:false},ticks:{font:{size:9}}}}}
-  });
-
-  // Chemical inventory
-  const inv = d.chemicalInventory||[];
-  const maxStock = Math.max(...inv.map(r=>Number(r.current_stock)||0), 1);
-  document.getElementById('chemInventoryList').innerHTML = inv.map(r=>{
-    const low = Number(r.current_stock) < Number(r.min_threshold);
-    return `<div class="bar-item"><div class="lbl">${r.chemical} <b style="${low?'color:var(--red)':''}">${r.current_stock} ${r.unit} ${low?'⚠️':''}</b></div>
-    <div class="bar-track"><div class="bar-fill ${low?'warn':''}" style="width:${(r.current_stock/maxStock*100)}%;"></div></div></div>`;
-  }).join('');
-
-  // Chemical stock-in log
-  document.getElementById('stockInBody').innerHTML = (d.chemicalStockIn||[]).map(r=>
-    `<tr><td>${r.date||''}</td><td>${r.chemical||''}</td><td>${r.quantity||''} ${r.unit||''}</td><td>${r.supplier||''}</td><td>${r.note||''}</td></tr>`).join('') || '<tr><td colspan="5" style="color:var(--gray);">Chưa có dữ liệu.</td></tr>';
-
-  renderAlerts(d);
-  renderSettings();
-  renderEntriesTable(d);
-  updateShiftBadge(d);
-
-  const activeNav = document.querySelector('.nav a.active');
-  const activeKey = activeNav ? activeNav.getAttribute('data-page') : 'overview';
-  showPage(activeKey, activeNav ? activeNav.textContent.trim() : 'Tổng quan');
-}
-
-/* ================= DEMO DATA ================= */
-const DEMO_DATA = {
-  updatedAt: new Date().toISOString(),
-  kpis:[
-    {id:'influent', label:'TỔNG NƯỚC THẢI ĐẦU VÀO', icon:'💧', value:'1,860 m³', delta:'▲ 4.2%', delta_type:'up', subtext:'so với hôm qua'},
-    {id:'ro_clean', label:'TỔNG NƯỚC SẠCH RO', icon:'🧴', value:'1,240 m³', delta:'▲ 3.8%', delta_type:'up', subtext:'so với hôm qua'},
-    {id:'pump_yy', label:'NƯỚC BƠM CHO YY HÔM NAY', icon:'🚿', value:'1,180 m³', delta:'▲ 2.1%', delta_type:'up', subtext:'so với hôm qua'},
-    {id:'recovery', label:'TỶ LỆ RECOVERY', icon:'🔄', value:'66.7%', delta:'▲ 1.2 pp', delta_type:'up', subtext:'so với hôm qua'},
-    {id:'ph', label:'pH RO', icon:'🧪', value:'6.8', delta:'▲ 0.2', delta_type:'up', subtext:'so với hôm qua'},
-    {id:'tds', label:'TDS RO', icon:'🌡️', value:'58 ppm', delta:'▲ 1.0%', delta_type:'up', subtext:'so với hôm qua'},
-    {id:'orp', label:'ORP RO', icon:'🔋', value:'245 mV', delta:'▲ 1.5%', delta_type:'up', subtext:'so với hôm qua'},
-    {id:'color', label:'ĐỘ MÀU RO', icon:'🎨', value:'12 Pt-Co', delta:'▲ 0.8%', delta_type:'up', subtext:'so với hôm qua'}
-  ],
-  monthlyTrend:[
-    {month:'T3/26', influent_m3:1720, ro_permeate_m3:1120, recovery_pct:65.1, ph_ro:6.5, tds_ro:61, orp_ro:238, color_ro:15, turbidity_ro:6.2, chemical_total_l:390},
-    {month:'T4/26', influent_m3:1780, ro_permeate_m3:1160, recovery_pct:65.6, ph_ro:6.6, tds_ro:60, orp_ro:240, color_ro:14, turbidity_ro:5.8, chemical_total_l:405},
-    {month:'T5/26', influent_m3:1810, ro_permeate_m3:1190, recovery_pct:65.9, ph_ro:6.7, tds_ro:59, orp_ro:241, color_ro:13, turbidity_ro:5.3, chemical_total_l:412},
-    {month:'T6/26', influent_m3:1840, ro_permeate_m3:1215, recovery_pct:66.3, ph_ro:6.7, tds_ro:58, orp_ro:243, color_ro:12, turbidity_ro:4.9, chemical_total_l:418},
-    {month:'T7/26', influent_m3:1860, ro_permeate_m3:1240, recovery_pct:66.7, ph_ro:6.8, tds_ro:58, orp_ro:245, color_ro:12, turbidity_ro:4.6, chemical_total_l:425}
-  ],
-  influent:[{category:'Nước nhuộm',percent:52},{category:'Nước giặt',percent:28},{category:'Nước hồ (sizing)',percent:12},{category:'Khác',percent:8}],
-  operatingSummary:[
-    {parameter:'Tổng lưu lượng đầu vào (m³)', current:'1,860', previous:'1,810', variance:'50', variance_pct:'▲2.8%', row_type:'normal'},
-    {parameter:'Tổng nước sạch RO (m³)', current:'1,240', previous:'1,190', variance:'50', variance_pct:'▲4.2%', row_type:'normal'},
-    {parameter:'Nước bơm cho YY (m³)', current:'1,180', previous:'1,145', variance:'35', variance_pct:'▲3.1%', row_type:'normal'},
-    {parameter:'Tỷ lệ Recovery (%)', current:'66.7%', previous:'65.9%', variance:'0.8 pp', variance_pct:'▲', row_type:'total'},
-    {parameter:'pH RO (trung bình)', current:'6.8', previous:'6.7', variance:'0.1', variance_pct:'▲', row_type:'sub'},
-    {parameter:'TDS RO (ppm, trung bình)', current:'58', previous:'57', variance:'1', variance_pct:'▲1.8%', row_type:'sub'},
-    {parameter:'ORP RO (mV, trung bình)', current:'245', previous:'241', variance:'4', variance_pct:'▲1.7%', row_type:'sub'},
-    {parameter:'Độ màu RO (Pt-Co)', current:'12', previous:'13', variance:'-1', variance_pct:'▼7.7%', row_type:'sub'},
-    {parameter:'Độ đục RO (NTU)', current:'4.6', previous:'4.9', variance:'-0.3', variance_pct:'▼6.1%', row_type:'sub'},
-    {parameter:'Tổng hóa chất sử dụng (lít)', current:'425', previous:'418', variance:'7', variance_pct:'▲1.7%', row_type:'normal'}
-  ],
-  lineContribution:[
-    {line:'Hệ UF A', value_m3:940, percent:50.5},
-    {line:'Hệ UF B', value_m3:920, percent:49.5},
-    {line:'Hệ RO A', value_m3:650, percent:52.4},
-    {line:'Hệ RO B', value_m3:590, percent:47.6}
-  ],
-  costVariance:[
-    {item:'PAC 10%', delta:-320},
-    {item:'Polymer 0.05%', delta:150},
-    {item:'NaOH 10%', delta:-90},
-    {item:'Hóa chất khác', delta:60}
-  ],
-  compliance:[{actual:66.7, target:65.0}],
-  chemicalUsage:[
-    {date:'23/07/2026',shift:'Ca ngày',chemical:'PAC 10%',amount_used:125,unit:'lít'},
-    {date:'23/07/2026',shift:'Ca tối',chemical:'PAC 10%',amount_used:130,unit:'lít'},
-    {date:'23/07/2026',shift:'Ca ngày',chemical:'Polymer 0.05%',amount_used:155,unit:'lít'},
-    {date:'23/07/2026',shift:'Ca tối',chemical:'Polymer 0.05%',amount_used:150,unit:'lít'},
-    {date:'23/07/2026',shift:'Ca ngày',chemical:'NaOH 10%',amount_used:60,unit:'lít'},
-    {date:'23/07/2026',shift:'Ca tối',chemical:'NaOH 10%',amount_used:55,unit:'lít'},
-    {date:'23/07/2026',shift:'Ca ngày',chemical:'Javen 10%',amount_used:40,unit:'lít'},
-    {date:'23/07/2026',shift:'Ca tối',chemical:'Javen 10%',amount_used:35,unit:'lít'},
-    {date:'23/07/2026',shift:'Ca ngày',chemical:'HCl 10%',amount_used:20,unit:'lít'},
-    {date:'23/07/2026',shift:'Ca tối',chemical:'HCl 10%',amount_used:18,unit:'lít'},
-    {date:'23/07/2026',shift:'Ca ngày',chemical:'Citric Acid',amount_used:15,unit:'lít'},
-    {date:'23/07/2026',shift:'Ca tối',chemical:'Citric Acid',amount_used:12,unit:'lít'},
-    {date:'23/07/2026',shift:'Ca ngày',chemical:'Genesys LS',amount_used:10,unit:'lít'},
-    {date:'23/07/2026',shift:'Ca tối',chemical:'Genesys LS',amount_used:9,unit:'lít'}
-  ],
-  chemicalInventory:[
-    {chemical:'PAC 10%',current_stock:850,unit:'lít',min_threshold:300},
-    {chemical:'Polymer 0.05%',current_stock:420,unit:'lít',min_threshold:200},
-    {chemical:'NaOH 10%',current_stock:180,unit:'lít',min_threshold:200},
-    {chemical:'Javen 10%',current_stock:260,unit:'lít',min_threshold:150},
-    {chemical:'HCl 10%',current_stock:95,unit:'lít',min_threshold:100},
-    {chemical:'Citric Acid',current_stock:140,unit:'lít',min_threshold:80},
-    {chemical:'Genesys LS',current_stock:110,unit:'lít',min_threshold:60}
-  ],
-  chemicalStockIn:[
-    {date:'20/07/2026',chemical:'PAC 10%',quantity:500,unit:'lít',supplier:'Cty Hóa chất An Phát',note:''},
-    {date:'18/07/2026',chemical:'NaOH 10%',quantity:200,unit:'lít',supplier:'Cty Hóa chất An Phát',note:''},
-    {date:'15/07/2026',chemical:'Citric Acid',quantity:100,unit:'lít',supplier:'Cty TNHH Hóa Chất Miền Nam',note:''},
-    {date:'12/07/2026',chemical:'Genesys LS',quantity:80,unit:'lít',supplier:'Cty TNHH Hóa Chất Miền Nam',note:''}
-  ],
-  dailyEntries:[
-    {timestamp:'2026-07-21T07:00:00.000Z', date:'2026-07-21', shift:'Ca ngày', username:'admin', fullname:'Dương Đại Long',
-     influent_m3:600, ro_permeate_m3:400, pump_to_yy_m3:380, recovery_pct:66.1, ph_ro:6.7, tds_ro:59, orp_ro:242, color_ro:13,
-     chem_pac:60, chem_polymer:75, chem_naoh:28, chem_javen:18, chem_hcl:9, chem_citric:7, chem_genesys:6,
-     tasks_done:'Kiểm tra áp lực bơm RO', notes:''},
-    {timestamp:'2026-07-21T19:00:00.000Z', date:'2026-07-21', shift:'Ca tối', username:'vanhanh01', fullname:'Trần Thị B',
-     influent_m3:590, ro_permeate_m3:390, pump_to_yy_m3:375, recovery_pct:65.8, ph_ro:6.6, tds_ro:60, orp_ro:239, color_ro:14,
-     chem_pac:58, chem_polymer:72, chem_naoh:27, chem_javen:17, chem_hcl:9, chem_citric:6, chem_genesys:6,
-     tasks_done:'Vệ sinh lọc UF, Ghi chỉ số đồng hồ nước', notes:''},
-    {timestamp:'2026-07-22T07:00:00.000Z', date:'2026-07-22', shift:'Ca ngày', username:'admin', fullname:'Dương Đại Long',
-     influent_m3:615, ro_permeate_m3:410, pump_to_yy_m3:392, recovery_pct:66.4, ph_ro:6.7, tds_ro:58, orp_ro:244, color_ro:12,
-     chem_pac:62, chem_polymer:77, chem_naoh:29, chem_javen:19, chem_hcl:10, chem_citric:7, chem_genesys:6,
-     tasks_done:'Kiểm tra tồn kho hóa chất, Kiểm tra pH/TDS/ORP đầu ra', notes:''},
-    {timestamp:'2026-07-22T19:00:00.000Z', date:'2026-07-22', shift:'Ca tối', username:'kythuat01', fullname:'Lê Văn C',
-     influent_m3:605, ro_permeate_m3:405, pump_to_yy_m3:388, recovery_pct:66.9, ph_ro:6.8, tds_ro:58, orp_ro:246, color_ro:12,
-     chem_pac:63, chem_polymer:78, chem_naoh:30, chem_javen:19, chem_hcl:10, chem_citric:8, chem_genesys:6,
-     tasks_done:'Ghi chỉ số đồng hồ nước', notes:''},
-    {timestamp:'2026-07-23T07:00:00.000Z', date:'2026-07-23', shift:'Ca ngày', username:'admin', fullname:'Dương Đại Long',
-     influent_m3:645, ro_permeate_m3:430, pump_to_yy_m3:410, recovery_pct:66.7, ph_ro:6.8, tds_ro:58, orp_ro:245, color_ro:12,
-     chem_pac:65, chem_polymer:80, chem_naoh:31, chem_javen:21, chem_hcl:10, chem_citric:8, chem_genesys:6,
-     tasks_done:'Kiểm tra áp lực bơm RO, Ghi chỉ số đồng hồ nước', notes:''}
-  ]
-};
-</script>
-</body>
-</html>
