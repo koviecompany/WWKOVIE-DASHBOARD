@@ -125,6 +125,16 @@
 
   /* Data entry form */
   .entry-form h4{color:var(--orange);font-size:11px;letter-spacing:.4px;margin:16px 0 8px;}
+  .ef-detail{margin:14px 0;border:1px solid var(--border);border-radius:8px;background:var(--panel2);padding:2px 10px;}
+  .ef-detail summary{cursor:pointer;padding:8px 2px;font-size:11.5px;color:var(--orange);font-weight:700;}
+  .ef-detail[open] summary{border-bottom:1px solid var(--border);margin-bottom:8px;}
+  .ef-detail-group{margin:10px 0;}
+  .ef-detail-group h5{font-size:10.5px;color:var(--gray);margin:0 0 6px;text-transform:uppercase;letter-spacing:.3px;}
+  .ef-detail-table{width:100%;border-collapse:collapse;margin-bottom:10px;}
+  .ef-detail-table td{padding:3px 4px;font-size:10.5px;}
+  .ef-detail-table td.label-col{color:#d8d8d8;width:34%;}
+  .ef-detail-table input{width:100%;background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:5px 6px;color:var(--white);font-size:11px;}
+  .ef-detail-table th{font-size:9.5px;color:var(--gray2);text-align:center;padding:2px;}
   .ef-row{display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap;}
   .ef-row label{font-size:11px;color:var(--gray);min-width:70px;}
   .ef-row input, .ef-row select{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--white);font-size:12px;}
@@ -182,6 +192,7 @@
       <a data-page="chenh_lech" onclick="showPage('chenh_lech','Phân tích Chênh lệch')"><span class="ic">🔀</span> Phân tích Chênh lệch</a>
       <a data-page="baocao" onclick="showPage('baocao','Báo cáo')"><span class="ic">📄</span> Báo cáo</a>
       <a data-page="canh_bao" onclick="showPage('canh_bao','Cảnh báo')"><span class="ic">🔔</span> Cảnh báo</a>
+      <a data-page="cip" onclick="showPage('cip','CIP RO & UF')"><span class="ic">🧽</span> CIP RO & UF</a>
       <a data-page="cai_dat" onclick="showPage('cai_dat','Cài đặt')"><span class="ic">⚡</span> Cài đặt</a>
     </div>
 
@@ -312,6 +323,26 @@
     </div>
 
     <div class="panel wide" id="panel-pAlerts"><h3>CẢNH BÁO HỆ THỐNG</h3><div id="alertsList"></div></div>
+    <div class="panel wide" id="panel-pCIP">
+      <h3>THEO DÕI CIP (VỆ SINH HÓA CHẤT) — UF & RO</h3>
+      <div class="ef-row">
+        <label>Hệ thống</label>
+        <select id="cip_system">
+          <option>UF A</option><option>UF B</option><option>RO A</option><option>RO B</option>
+        </select>
+        <label>Ngày CIP</label><input type="date" id="cip_date">
+        <label>Ghi chú</label><input type="text" id="cip_note" placeholder="VD: CIP bằng NaOH + Citric" style="min-width:180px;">
+      </div>
+      <div class="ef-actions">
+        <button class="btn-save" onclick="saveCip()">💾 Lưu lần CIP này</button>
+      </div>
+      <div id="cip_msg" class="ef-msg"></div>
+      <h4 style="margin-top:16px;">Tình trạng hiện tại</h4>
+      <div id="cipStatusList"></div>
+      <h4 style="margin-top:16px;">Lịch sử CIP gần đây</h4>
+      <div style="overflow-x:auto;"><table><thead><tr><th>Ngày</th><th>Hệ thống</th><th>Ghi chú</th></tr></thead><tbody id="cipHistoryBody"></tbody></table></div>
+    </div>
+
     <div class="panel wide" id="panel-pSettings"><h3>THÔNG TIN TÀI KHOẢN & HỆ THỐNG</h3><div id="settingsList"></div></div>
 
     <div class="panel wide tall" id="panel-pDataEntry">
@@ -324,7 +355,7 @@
           <label>Nhân viên</label><input type="text" id="ef_fullname" readonly style="min-width:160px;">
         </div>
 
-        <h4>Số liệu vận hành</h4>
+        <h4>Số liệu vận hành (tổng quan)</h4>
         <div class="ef-grid">
           <div><label>Lưu lượng nước thải đầu vào (m³)</label><input type="number" id="ef_influent"></div>
           <div><label>Nước sạch RO (m³)</label><input type="number" id="ef_ro"></div>
@@ -335,6 +366,14 @@
           <div><label>Độ màu RO (Pt-Co)</label><input type="number" id="ef_color"></div>
           <div><label>Độ đục RO (NTU)</label><input type="number" id="ef_turbidity"></div>
         </div>
+
+        <details class="ef-detail"><summary>📋 Chi tiết pH / TDS / ORP theo từng điểm (bấm để mở)</summary>
+          <div id="detailPhTdsOrp"></div>
+        </details>
+
+        <details class="ef-detail"><summary>⚙️ Chi tiết thông số RO A & RO B (bấm để mở)</summary>
+          <div id="detailRoAB"></div>
+        </details>
 
         <h4>Hóa chất sử dụng trong ca (lít)</h4>
         <div class="ef-grid">
@@ -418,8 +457,8 @@ function onViewModeChange(){
 }
 
 /* ================= NAVIGATION ================= */
-const ALL_PANEL_IDS = ['p1','p2','p4','p5','p6','p7','p8','p9','p10','p11','pChemUsage','pChemInventory','pChemStockIn','pAlerts','pSettings','pDataEntry'];
-const PAGE_ICON = {overview:'🏠',nhap_lieu:'📝',baocao_vanhanh:'📊',luu_luong:'💧',hoa_chat:'🧴',chat_luong:'🧪',xu_huong:'📈',ke_hoach:'🎯',chenh_lech:'🔀',baocao:'📄',canh_bao:'🔔',cai_dat:'⚡'};
+const ALL_PANEL_IDS = ['p1','p2','p4','p5','p6','p7','p8','p9','p10','p11','pChemUsage','pChemInventory','pChemStockIn','pAlerts','pSettings','pDataEntry','pCIP'];
+const PAGE_ICON = {overview:'🏠',nhap_lieu:'📝',baocao_vanhanh:'📊',luu_luong:'💧',hoa_chat:'🧴',chat_luong:'🧪',xu_huong:'📈',ke_hoach:'🎯',chenh_lech:'🔀',baocao:'📄',canh_bao:'🔔',cip:'🧽',cai_dat:'⚡'};
 const PAGES = {
   overview:       ['p1','p4','p5','p6','p8','p9','p10'],
   nhap_lieu:      ['pDataEntry'],
@@ -432,6 +471,7 @@ const PAGES = {
   chenh_lech:     ['p7','p5'],
   baocao:         ['p5'],
   canh_bao:       ['pAlerts'],
+  cip:            ['pCIP'],
   cai_dat:        ['pSettings']
 };
 
@@ -486,6 +526,8 @@ function enterApp(){
   document.getElementById('userRole').textContent = currentUser.role || '';
   document.getElementById('ef_date').value = new Date().toISOString().slice(0,10);
   document.getElementById('ef_fullname').value = currentUser.fullname || currentUser.username || '';
+  document.getElementById('cip_date').value = new Date().toISOString().slice(0,10);
+  buildDetailForms();
   onViewModeChange();
   showPage('overview','Tổng quan');
 }
@@ -517,6 +559,117 @@ function refreshData(){
   else if(lastData){ renderDashboard(lastData); }
 }
 
+/* ================= CHI TIẾT pH/TDS/ORP THEO ĐIỂM + RO A/B (sinh động bằng JS) ================= */
+const PH_POINTS = ['Bể điều hòa','pH trước PAM','Bể lắng 1','Bể lắng 2','Bể lắng tròn','Bể TMF','Lọc UF-A','Lọc UF-B','Lọc RO-A','Lọc RO-B'];
+const TDS_POINTS = ['Bể điều hòa','Bể lắng 1','Bể lắng 2','Bể lắng tròn','Bể TMF','Lọc UF-A','Lọc UF-B','Lọc RO-A','Lọc RO-B'];
+const ORP_POINTS = TDS_POINTS;
+
+function slugify(s){
+  return s.toLowerCase().replace(/đ/g,'d')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'');
+}
+
+function buildPointTable(prefix, points){
+  const rows = points.map(p=>{
+    const slug = prefix+'_'+slugify(p);
+    return `<tr><td class="label-col">${p}</td><td><input type="number" step="0.01" id="d_${slug}_sang" class="detail-input" placeholder="Sáng"></td><td><input type="number" step="0.01" id="d_${slug}_toi" class="detail-input" placeholder="Tối"></td></tr>`;
+  }).join('');
+  return `<table class="ef-detail-table"><thead><tr><th style="text-align:left;">Điểm đo</th><th>Sáng</th><th>Tối</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function buildRoGroup(letter){
+  const l = letter.toLowerCase();
+  let rows = '';
+  ['1','2','3'].forEach(n=>{ rows += `<tr><td class="label-col">CS bơm RO ${letter}-${n} (Hz)</td><td><input type="number" step="0.1" id="d_cs_ro${l}${n}_sang" class="detail-input"></td><td><input type="number" step="0.1" id="d_cs_ro${l}${n}_toi" class="detail-input"></td></tr>`; });
+  ['1','2','3'].forEach(n=>{ rows += `<tr><td class="label-col">Áp vào RO ${letter}-${n} (Bar)</td><td><input type="number" step="0.1" id="d_apvao_ro${l}${n}_sang" class="detail-input"></td><td><input type="number" step="0.1" id="d_apvao_ro${l}${n}_toi" class="detail-input"></td></tr>`; });
+  ['1','2','3'].forEach(n=>{ rows += `<tr><td class="label-col">Áp Reject RO ${letter}-${n} (Bar)</td><td><input type="number" step="0.1" id="d_apreject_ro${l}${n}_sang" class="detail-input"></td><td><input type="number" step="0.1" id="d_apreject_ro${l}${n}_toi" class="detail-input"></td></tr>`; });
+  rows += `<tr><td class="label-col">Nước cấp RO ${letter} (m³/h)</td><td><input type="number" step="0.1" id="d_nuoccap_ro${l}_sang" class="detail-input"></td><td><input type="number" step="0.1" id="d_nuoccap_ro${l}_toi" class="detail-input"></td></tr>`;
+  rows += `<tr><td class="label-col">Nước sạch RO ${letter} (m³/h)</td><td><input type="number" step="0.1" id="d_nuocsach_ro${l}_sang" class="detail-input"></td><td><input type="number" step="0.1" id="d_nuocsach_ro${l}_toi" class="detail-input"></td></tr>`;
+  rows += `<tr><td class="label-col">Nước Reject RO ${letter} (m³/h)</td><td><input type="number" step="0.1" id="d_nuocreject_ro${l}_sang" class="detail-input"></td><td><input type="number" step="0.1" id="d_nuocreject_ro${l}_toi" class="detail-input"></td></tr>`;
+  ['1','2','3'].forEach(n=>{ rows += `<tr><td class="label-col">Đồng hồ nước ${letter}${n} (m³/h)</td><td><input type="number" step="0.1" id="d_dhn_${l}${n}_sang" class="detail-input"></td><td><input type="number" step="0.1" id="d_dhn_${l}${n}_toi" class="detail-input"></td></tr>`; });
+  return `<div class="ef-detail-group"><h5>Hệ RO ${letter}</h5><table class="ef-detail-table"><thead><tr><th style="text-align:left;">Thông số</th><th>Sáng</th><th>Tối</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+function buildDetailForms(){
+  const phTdsOrp = document.getElementById('detailPhTdsOrp');
+  if(phTdsOrp){
+    phTdsOrp.innerHTML =
+      `<div class="ef-detail-group"><h5>pH</h5>${buildPointTable('ph', PH_POINTS)}</div>` +
+      `<div class="ef-detail-group"><h5>TDS (ppm)</h5>${buildPointTable('tds', TDS_POINTS)}</div>` +
+      `<div class="ef-detail-group"><h5>ORP (mV)</h5>${buildPointTable('orp', ORP_POINTS)}</div>`;
+  }
+  const roAB = document.getElementById('detailRoAB');
+  if(roAB){ roAB.innerHTML = buildRoGroup('A') + buildRoGroup('B'); }
+}
+
+function collectDetailFieldsJSON(){
+  const obj = {};
+  document.querySelectorAll('.detail-input').forEach(inp=>{
+    if(inp.value!=='') obj[inp.id.replace(/^d_/,'')] = inp.value;
+  });
+  return JSON.stringify(obj);
+}
+function clearDetailFields(){
+  document.querySelectorAll('.detail-input').forEach(inp=>inp.value='');
+}
+
+/* ================= THEO DÕI CIP (VỆ SINH HÓA CHẤT) UF & RO ================= */
+async function saveCip(){
+  const msg = document.getElementById('cip_msg');
+  const system = document.getElementById('cip_system').value;
+  const date = document.getElementById('cip_date').value;
+  const note = document.getElementById('cip_note').value;
+  if(!date){ msg.style.color='var(--red)'; msg.textContent='Vui lòng chọn ngày CIP.'; return; }
+  const cip = { system, date, note, username: currentUser?currentUser.username:'', fullname: currentUser?currentUser.fullname:'' };
+
+  if(isApiConfigured() && currentUser && currentUser.username!=='demo'){
+    try{
+      const res = await fetch(API_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify({action:'saveCip', cip})});
+      const data = await res.json();
+      if(data.success){ msg.style.color='var(--green)'; msg.textContent=data.message; document.getElementById('cip_note').value=''; await loadRealData(); }
+      else { msg.style.color='var(--red)'; msg.textContent=data.message||'Lưu thất bại'; }
+    }catch(e){ msg.style.color='var(--red)'; msg.textContent='Không kết nối được backend.'; }
+  } else {
+    cip.timestamp = new Date().toISOString();
+    if(!lastData) lastData = JSON.parse(JSON.stringify(DEMO_DATA));
+    lastData.cipLog = lastData.cipLog||[];
+    lastData.cipLog.push(cip);
+    msg.style.color='var(--orange)'; msg.textContent='Chế độ demo: đã thêm tạm (không lưu thật vào Google Sheets).';
+    renderCIP(lastData);
+  }
+}
+
+function renderCIP(d){
+  const log = d.cipLog||[];
+  const systems = ['UF A','UF B','RO A','RO B'];
+  const latestBySystem = {};
+  log.forEach(c=>{
+    const dt = parseDateSmart(c.date);
+    if(!dt) return;
+    if(!latestBySystem[c.system] || dt>latestBySystem[c.system].dt){ latestBySystem[c.system]={dt, date:c.date}; }
+  });
+  const today = new Date();
+  const listEl = document.getElementById('cipStatusList');
+  if(listEl){
+    listEl.innerHTML = systems.map(s=>{
+      const info = latestBySystem[s];
+      if(!info){
+        return `<div class="bar-item"><div class="lbl">${s} <b style="color:var(--gray)">Chưa có dữ liệu CIP</b></div><div class="bar-track"><div class="bar-fill" style="width:0%;"></div></div></div>`;
+      }
+      const days = Math.floor((today - info.dt)/86400000);
+      const warn = days>=30;
+      return `<div class="bar-item"><div class="lbl">${s} <b style="${warn?'color:var(--red)':'color:var(--green)'}">${days} ngày trước (${info.date}) ${warn?'⚠️ nên CIP':''}</b></div>
+      <div class="bar-track"><div class="bar-fill ${warn?'warn':''}" style="width:${Math.min(100, days/45*100)}%;"></div></div></div>`;
+    }).join('');
+  }
+  const histEl = document.getElementById('cipHistoryBody');
+  if(histEl){
+    histEl.innerHTML = log.slice(-15).reverse().map(c=>
+      `<tr><td>${c.date||''}</td><td>${c.system||''}</td><td>${c.note||''}</td></tr>`).join('') || '<tr><td colspan="3" style="color:var(--gray);">Chưa có lịch sử CIP.</td></tr>';
+  }
+}
+
 /* ================= DATA ENTRY FORM ================= */
 function collectTasksDone(){
   return Array.from(document.querySelectorAll('#ef_tasks input[type=checkbox]:checked')).map(cb=>cb.value).join(', ');
@@ -530,6 +683,7 @@ function clearEntryForm(){
   document.querySelectorAll('#ef_tasks input[type=checkbox]').forEach(cb=>cb.checked=false);
   document.getElementById('ef_date').value = new Date().toISOString().slice(0,10);
   document.getElementById('ef_msg').textContent = '';
+  clearDetailFields();
 }
 
 async function saveEntry(){
@@ -555,7 +709,8 @@ async function saveEntry(){
     chem_citric: document.getElementById('ef_citric').value,
     chem_genesys: document.getElementById('ef_genesys').value,
     tasks_done: collectTasksDone(),
-    notes: document.getElementById('ef_notes').value
+    notes: document.getElementById('ef_notes').value,
+    detail_json: collectDetailFieldsJSON()
   };
   if(!entry.date || !entry.shift){ msg.style.color='var(--red)'; msg.textContent='Vui lòng chọn ngày và ca.'; return; }
 
@@ -1105,6 +1260,7 @@ function renderDashboard(d){
   renderSettings();
   renderEntriesTable(d);
   updateShiftBadge(d);
+  renderCIP(d);
 
   const activeNav = document.querySelector('.nav a.active');
   const activeKey = activeNav ? activeNav.getAttribute('data-page') : 'overview';
@@ -1209,6 +1365,12 @@ const DEMO_DATA = {
      influent_m3:645, ro_permeate_m3:430, pump_to_yy_m3:410, recovery_pct:66.7, ph_ro:6.8, tds_ro:58, orp_ro:245, color_ro:12, turbidity_ro:5.2,
      chem_pac:65, chem_polymer:80, chem_naoh:31, chem_javen:21, chem_hcl:10, chem_citric:8, chem_genesys:6,
      tasks_done:'Kiểm tra áp lực bơm RO, Ghi chỉ số đồng hồ nước', notes:''}
+  ],
+  cipLog:[
+    {date:'2026-06-25', system:'UF A', note:'CIP định kỳ bằng NaOH'},
+    {date:'2026-06-20', system:'UF B', note:'CIP định kỳ bằng NaOH'},
+    {date:'2026-07-10', system:'RO A', note:'CIP bằng Citric Acid + NaOH'},
+    {date:'2026-06-15', system:'RO B', note:'CIP bằng Citric Acid'}
   ]
 };
 </script>
