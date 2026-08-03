@@ -314,6 +314,7 @@
       <div class="chart-wrap"><canvas id="gauge"></canvas></div>
       <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--gray);margin-top:4px;" id="complianceLine"></div>
     </div>
+    <div class="panel" id="panel-p12"><h3>ÁP SUẤT RO — ĐẦU VÀO & REJECT (Bar)</h3><div class="chart-wrap"><canvas id="pressureTrend"></canvas></div></div>
 
     <div class="panel" id="panel-pChemUsage"><h3>SỬ DỤNG HÓA CHẤT HÔM NAY (theo loại)</h3><div class="chart-wrap"><canvas id="chemUsageChart"></canvas></div></div>
     <div class="panel" id="panel-pChemInventory"><h3>TỒN KHO HÓA CHẤT HIỆN TẠI</h3><div id="chemInventoryList"></div></div>
@@ -365,7 +366,18 @@
       <div style="overflow-x:auto;"><table><thead><tr><th>Ngày</th><th>Hệ thống</th><th>Hóa chất</th><th>Ghi chú</th></tr></thead><tbody id="cipHistoryBody"></tbody></table></div>
     </div>
 
-    <div class="panel wide" id="panel-pSettings"><h3>THÔNG TIN TÀI KHOẢN & HỆ THỐNG</h3><div id="settingsList"></div></div>
+    <div class="panel wide" id="panel-pSettings">
+      <h3>THÔNG TIN TÀI KHOẢN & HỆ THỐNG</h3>
+      <div id="settingsList"></div>
+      <h4 style="margin-top:18px;">🔒 Đổi mật khẩu</h4>
+      <div class="ef-row">
+        <input type="password" id="pw_old" placeholder="Mật khẩu hiện tại">
+        <input type="password" id="pw_new" placeholder="Mật khẩu mới">
+        <input type="password" id="pw_confirm" placeholder="Nhập lại mật khẩu mới">
+      </div>
+      <div class="ef-actions"><button class="btn-save" onclick="changePasswordUI()">🔒 Đổi mật khẩu</button></div>
+      <div id="pw_msg" class="ef-msg"></div>
+    </div>
 
     <div class="panel wide tall" id="panel-pDataEntry">
       <h3>NHÂN VIÊN NHẬP LIỆU — BÁO CÁO CA</h3>
@@ -403,6 +415,20 @@
           <div id="detailRoAB"></div>
         </details>
 
+        <h4>📷 Chụp ảnh đồng hồ đo (không bắt buộc)</h4>
+        <div class="ef-grid">
+          <div>
+            <label>Ảnh đồng hồ Nước thải đầu vào</label>
+            <input type="file" accept="image/*" capture="environment" id="ef_photo_influent" onchange="previewPhoto('ef_photo_influent','preview_influent')">
+            <img id="preview_influent" style="display:none;max-width:130px;border-radius:8px;margin-top:6px;border:1px solid var(--border);">
+          </div>
+          <div>
+            <label>Ảnh đồng hồ Nước sạch RO bơm cho YY</label>
+            <input type="file" accept="image/*" capture="environment" id="ef_photo_ro" onchange="previewPhoto('ef_photo_ro','preview_ro')">
+            <img id="preview_ro" style="display:none;max-width:130px;border-radius:8px;margin-top:6px;border:1px solid var(--border);">
+          </div>
+        </div>
+
         <h4>Hóa chất sử dụng trong ca (lít)</h4>
         <div class="ef-grid">
           <div><label>PAC 10%</label><input type="number" id="ef_pac"></div>
@@ -435,7 +461,7 @@
       </div>
 
       <h4 style="margin-top:18px;">Lịch sử báo cáo gần đây</h4>
-      <div style="overflow-x:auto;"><table><thead><tr><th>Ngày</th><th>Ca</th><th>Nhân viên</th><th>NT đầu vào</th><th>Nước RO</th><th>pH</th><th>Ghi chú</th></tr></thead><tbody id="entriesBody"></tbody></table></div>
+      <div style="overflow-x:auto;"><table><thead><tr><th>Ngày</th><th>Ca</th><th>Nhân viên</th><th>NT đầu vào</th><th>Nước RO</th><th>pH</th><th>Ảnh</th><th>Ghi chú</th></tr></thead><tbody id="entriesBody"></tbody></table></div>
     </div>
   </div>
 </div>
@@ -485,10 +511,10 @@ function onViewModeChange(){
 }
 
 /* ================= NAVIGATION ================= */
-const ALL_PANEL_IDS = ['p1','p2','p4','p5','p6','p7','p8','p9','p10','p11','pChemUsage','pChemInventory','pChemStockIn','pAlerts','pSettings','pDataEntry','pCIP'];
+const ALL_PANEL_IDS = ['p1','p2','p4','p5','p6','p7','p8','p9','p10','p11','p12','pChemUsage','pChemInventory','pChemStockIn','pAlerts','pSettings','pDataEntry','pCIP'];
 const PAGE_ICON = {overview:'🏠',nhap_lieu:'📝',baocao_vanhanh:'📊',luu_luong:'💧',hoa_chat:'🧴',chat_luong:'🧪',xu_huong:'📈',ke_hoach:'🎯',chenh_lech:'🔀',baocao:'📄',canh_bao:'🔔',cip:'🧽',cai_dat:'⚡'};
 const PAGES = {
-  overview:       ['p1','p4','p5','p6','p8','p9','p10'],
+  overview:       ['p1','p4','p5','p6','p8','p9','p10','p12'],
   nhap_lieu:      ['pDataEntry'],
   baocao_vanhanh: ['p5','p8','p11'],
   luu_luong:      ['p1','p8','p6','p2'],
@@ -716,6 +742,49 @@ function avgDetailField(entry, fieldSlug){
   return vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : null;
 }
 
+/* ================= ÁP SUẤT RO — ĐẦU VÀO & REJECT (từ chi tiết báo cáo ca) ================= */
+function renderPressureTrend(){
+  if(!lastData) return;
+  const entries = (lastData.dailyEntries||[])
+    .filter(e=>e.detail_json)
+    .map(e=>({...e, dt:parseDateSmart(e.date)}))
+    .filter(e=>e.dt)
+    .sort((a,b)=>a.dt-b.dt);
+
+  const byDate = {};
+  const order = [];
+  entries.forEach(e=>{
+    const key = dateLabel(e.dt);
+    if(!byDate[key]){ byDate[key] = {feed:[], reject:[]}; order.push(key); }
+    ['a','b'].forEach(l=>{
+      ['1','2','3'].forEach(n=>{
+        const feed = avgDetailField(e, 'apvao_ro'+l+n);
+        const rej = avgDetailField(e, 'apreject_ro'+l+n);
+        if(feed!==null) byDate[key].feed.push(feed);
+        if(rej!==null) byDate[key].reject.push(rej);
+      });
+    });
+  });
+
+  const labels = order.slice(-20); // tối đa 20 điểm gần nhất cho dễ đọc
+  const feedAvg = labels.map(k=>{ const v=byDate[k].feed; return v.length ? +(v.reduce((a,b)=>a+b,0)/v.length).toFixed(2) : null; });
+  const rejectAvg = labels.map(k=>{ const v=byDate[k].reject; return v.length ? +(v.reduce((a,b)=>a+b,0)/v.length).toFixed(2) : null; });
+
+  if(charts.pressureTrend) charts.pressureTrend.destroy();
+  const canvas = document.getElementById('pressureTrend');
+  if(!canvas) return;
+  charts.pressureTrend = new Chart(canvas, {
+    type:'line',
+    data:{labels: labels.length?labels:['Chưa có dữ liệu'], datasets:[
+      {label:'Áp vào RO (TB, Bar)', data:feedAvg.length?feedAvg:[0], borderColor:'#4fc3f7', backgroundColor:'rgba(79,195,247,.12)', fill:true, tension:.35, pointRadius:3, spanGaps:true},
+      {label:'Áp Reject RO (TB, Bar)', data:rejectAvg.length?rejectAvg:[0], borderColor:'#e5484d', backgroundColor:'transparent', borderDash:[4,3], tension:.35, pointRadius:3, spanGaps:true}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'bottom',labels:{boxWidth:8,boxHeight:8,padding:8,font:{size:9.5}}}},
+      scales:{y:{grid:{color:'#26262a'},title:{display:true,text:'Bar',color:'#9aa0a6',font:{size:9}}}, x:{grid:{display:false},ticks:{font:{size:8.5}}}}}
+  });
+}
+
 function computeCipSmartAlerts(d){
   const alerts = [];
   const entries = (d.dailyEntries||[])
@@ -816,6 +885,38 @@ function collectTasksDone(){
   return Array.from(document.querySelectorAll('#ef_tasks input[type=checkbox]:checked')).map(cb=>cb.value).join(', ');
 }
 
+function previewPhoto(inputId, imgId){
+  const inp = document.getElementById(inputId);
+  const img = document.getElementById(imgId);
+  if(inp.files && inp.files[0]){
+    const reader = new FileReader();
+    reader.onload = e=>{ img.src = e.target.result; img.style.display='block'; };
+    reader.readAsDataURL(inp.files[0]);
+  }
+}
+
+// Nén/resize ảnh trước khi gửi lên backend để giảm dung lượng (tối đa 1000px chiều rộng)
+function resizeImageFile(file, maxWidth){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onload = function(e){
+      const img = new Image();
+      img.onload = function(){
+        let w = img.width, h = img.height;
+        if(w > maxWidth){ h = Math.round(h * (maxWidth / w)); w = maxWidth; }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', 0.7));
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 function clearEntryForm(){
   ['ef_influent','ef_ro','ef_pumpyy','ef_ph','ef_tds','ef_orp','ef_color','ef_turbidity','ef_pac','ef_polymer','ef_naoh','ef_javen','ef_hcl','ef_citric','ef_genesys'].forEach(id=>{
     document.getElementById(id).value = '';
@@ -824,11 +925,24 @@ function clearEntryForm(){
   document.querySelectorAll('#ef_tasks input[type=checkbox]').forEach(cb=>cb.checked=false);
   document.getElementById('ef_date').value = new Date().toISOString().slice(0,10);
   document.getElementById('ef_msg').textContent = '';
+  document.getElementById('ef_photo_influent').value = '';
+  document.getElementById('ef_photo_ro').value = '';
+  document.getElementById('preview_influent').style.display = 'none';
+  document.getElementById('preview_ro').style.display = 'none';
   clearDetailFields();
 }
 
 async function saveEntry(){
   const msg = document.getElementById('ef_msg');
+  const photoInfluentFile = document.getElementById('ef_photo_influent').files[0];
+  const photoRoFile = document.getElementById('ef_photo_ro').files[0];
+  let photoInfluentB64 = '', photoRoB64 = '';
+  msg.style.color = 'var(--gray)'; msg.textContent = 'Đang xử lý...';
+  try{
+    if(photoInfluentFile) photoInfluentB64 = await resizeImageFile(photoInfluentFile, 1000);
+    if(photoRoFile) photoRoB64 = await resizeImageFile(photoRoFile, 1000);
+  }catch(e){ /* ảnh lỗi thì bỏ qua, không chặn lưu số liệu */ }
+
   const entry = {
     date: document.getElementById('ef_date').value,
     shift: document.getElementById('ef_shift').value,
@@ -851,7 +965,9 @@ async function saveEntry(){
     chem_genesys: document.getElementById('ef_genesys').value,
     tasks_done: collectTasksDone(),
     notes: document.getElementById('ef_notes').value,
-    detail_json: collectDetailFieldsJSON()
+    detail_json: collectDetailFieldsJSON(),
+    photo_influent_base64: photoInfluentB64,
+    photo_ro_base64: photoRoB64
   };
   if(!entry.date || !entry.shift){ msg.style.color='var(--red)'; msg.textContent='Vui lòng chọn ngày và ca.'; return; }
 
@@ -876,9 +992,12 @@ async function saveEntry(){
 
 function renderEntriesTable(d){
   const rows = (d.dailyEntries||[]).slice(-10).reverse();
-  document.getElementById('entriesBody').innerHTML = rows.map(r=>
-    `<tr><td>${r.date||''}</td><td>${r.shift||''}</td><td>${r.fullname||r.username||''}</td><td>${r.influent_m3||''}</td><td>${r.ro_permeate_m3||''}</td><td>${r.ph_ro||''}</td><td>${r.notes||''}</td></tr>`
-  ).join('') || '<tr><td colspan="7" style="color:var(--gray);">Chưa có báo cáo nào.</td></tr>';
+  document.getElementById('entriesBody').innerHTML = rows.map(r=>{
+    let photos = '';
+    if(r.photo_influent_url) photos += `<a href="${r.photo_influent_url}" target="_blank" title="Ảnh đồng hồ đầu vào">📷1</a> `;
+    if(r.photo_ro_url) photos += `<a href="${r.photo_ro_url}" target="_blank" title="Ảnh đồng hồ RO">📷2</a>`;
+    return `<tr><td>${r.date||''}</td><td>${r.shift||''}</td><td>${r.fullname||r.username||''}</td><td>${r.influent_m3||''}</td><td>${r.ro_permeate_m3||''}</td><td>${r.ph_ro||''}</td><td>${photos||'—'}</td><td>${r.notes||''}</td></tr>`;
+  }).join('') || '<tr><td colspan="8" style="color:var(--gray);">Chưa có báo cáo nào.</td></tr>';
 }
 
 function updateShiftBadge(d){
@@ -915,6 +1034,29 @@ function buildAlerts(d){
 
 function renderAlerts(d){
   document.getElementById('alertsList').innerHTML = buildAlerts(d).map(a=>`<div class="alert-item ${a.level}">${a.text}</div>`).join('');
+}
+
+async function changePasswordUI(){
+  const msg = document.getElementById('pw_msg');
+  const oldPw = document.getElementById('pw_old').value;
+  const newPw = document.getElementById('pw_new').value;
+  const confirmPw = document.getElementById('pw_confirm').value;
+  if(!oldPw || !newPw || !confirmPw){ msg.style.color='var(--red)'; msg.textContent='Vui lòng nhập đầy đủ 3 ô.'; return; }
+  if(newPw !== confirmPw){ msg.style.color='var(--red)'; msg.textContent='Mật khẩu mới nhập lại không khớp.'; return; }
+  if(newPw.length<4){ msg.style.color='var(--red)'; msg.textContent='Mật khẩu mới nên có ít nhất 4 ký tự.'; return; }
+  if(!isApiConfigured() || !currentUser || currentUser.username==='demo'){
+    msg.style.color='var(--orange)'; msg.textContent='Chế độ demo: không đổi mật khẩu thật được.'; return;
+  }
+  try{
+    const res = await fetch(API_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify({action:'changePassword', username:currentUser.username, oldPassword:oldPw, newPassword:newPw})});
+    const data = await res.json();
+    if(data.success){
+      msg.style.color='var(--green)'; msg.textContent = data.message;
+      document.getElementById('pw_old').value=''; document.getElementById('pw_new').value=''; document.getElementById('pw_confirm').value='';
+    } else {
+      msg.style.color='var(--red)'; msg.textContent = data.message || 'Đổi mật khẩu thất bại';
+    }
+  }catch(e){ msg.style.color='var(--red)'; msg.textContent='Không kết nối được backend.'; }
 }
 
 function renderSettings(){
@@ -1401,6 +1543,7 @@ function renderDashboard(d){
   renderSettings();
   renderEntriesTable(d);
   updateShiftBadge(d);
+  renderPressureTrend();
   renderCIP(d);
 
   const activeNav = document.querySelector('.nav a.active');
@@ -1488,23 +1631,23 @@ const DEMO_DATA = {
   dailyEntries:[
     {timestamp:'2026-07-21T07:00:00.000Z', date:'2026-07-21', shift:'Ca ngày', username:'admin', fullname:'Dương Đại Long',
      influent_m3:600, ro_permeate_m3:400, pump_to_yy_m3:380, recovery_pct:66.1, ph_ro:6.7, tds_ro:59, orp_ro:242, color_ro:13, turbidity_ro:5.2,
-     chem_pac:60, chem_polymer:75, chem_naoh:28, chem_javen:18, chem_hcl:9, chem_citric:7, chem_genesys:6,
+     detail_json: "{\"apvao_roa1_sang\": 5.4, \"apvao_roa1_toi\": 5.4, \"apreject_roa1_sang\": 2.6, \"apreject_roa1_toi\": 2.6, \"apvao_roa2_sang\": 5.4, \"apvao_roa2_toi\": 5.4, \"apreject_roa2_sang\": 2.6, \"apreject_roa2_toi\": 2.6, \"apvao_roa3_sang\": 5.4, \"apvao_roa3_toi\": 5.4, \"apreject_roa3_sang\": 2.6, \"apreject_roa3_toi\": 2.6, \"apvao_rob1_sang\": 5.4, \"apvao_rob1_toi\": 5.4, \"apreject_rob1_sang\": 2.6, \"apreject_rob1_toi\": 2.6, \"apvao_rob2_sang\": 5.4, \"apvao_rob2_toi\": 5.4, \"apreject_rob2_sang\": 2.6, \"apreject_rob2_toi\": 2.6, \"apvao_rob3_sang\": 5.4, \"apvao_rob3_toi\": 5.4, \"apreject_rob3_sang\": 2.6, \"apreject_rob3_toi\": 2.6, \"tds_loc_uf_a_sang\": 205, \"tds_loc_uf_a_toi\": 205, \"tds_loc_uf_b_sang\": 208, \"tds_loc_uf_b_toi\": 208}", chem_pac:60, chem_polymer:75, chem_naoh:28, chem_javen:18, chem_hcl:9, chem_citric:7, chem_genesys:6,
      tasks_done:'Kiểm tra áp lực bơm RO', notes:''},
     {timestamp:'2026-07-21T19:00:00.000Z', date:'2026-07-21', shift:'Ca tối', username:'vanhanh01', fullname:'Trần Thị B',
      influent_m3:590, ro_permeate_m3:390, pump_to_yy_m3:375, recovery_pct:65.8, ph_ro:6.6, tds_ro:60, orp_ro:239, color_ro:14, turbidity_ro:5.2,
-     chem_pac:58, chem_polymer:72, chem_naoh:27, chem_javen:17, chem_hcl:9, chem_citric:6, chem_genesys:6,
+     detail_json: "{\"apvao_roa1_sang\": 5.5, \"apvao_roa1_toi\": 5.5, \"apreject_roa1_sang\": 2.7, \"apreject_roa1_toi\": 2.7, \"apvao_roa2_sang\": 5.5, \"apvao_roa2_toi\": 5.5, \"apreject_roa2_sang\": 2.7, \"apreject_roa2_toi\": 2.7, \"apvao_roa3_sang\": 5.5, \"apvao_roa3_toi\": 5.5, \"apreject_roa3_sang\": 2.7, \"apreject_roa3_toi\": 2.7, \"apvao_rob1_sang\": 5.5, \"apvao_rob1_toi\": 5.5, \"apreject_rob1_sang\": 2.7, \"apreject_rob1_toi\": 2.7, \"apvao_rob2_sang\": 5.5, \"apvao_rob2_toi\": 5.5, \"apreject_rob2_sang\": 2.7, \"apreject_rob2_toi\": 2.7, \"apvao_rob3_sang\": 5.5, \"apvao_rob3_toi\": 5.5, \"apreject_rob3_sang\": 2.7, \"apreject_rob3_toi\": 2.7, \"tds_loc_uf_a_sang\": 208, \"tds_loc_uf_a_toi\": 208, \"tds_loc_uf_b_sang\": 210, \"tds_loc_uf_b_toi\": 210}", chem_pac:58, chem_polymer:72, chem_naoh:27, chem_javen:17, chem_hcl:9, chem_citric:6, chem_genesys:6,
      tasks_done:'Vệ sinh lọc UF, Ghi chỉ số đồng hồ nước', notes:''},
     {timestamp:'2026-07-22T07:00:00.000Z', date:'2026-07-22', shift:'Ca ngày', username:'admin', fullname:'Dương Đại Long',
      influent_m3:615, ro_permeate_m3:410, pump_to_yy_m3:392, recovery_pct:66.4, ph_ro:6.7, tds_ro:58, orp_ro:244, color_ro:12, turbidity_ro:5.2,
-     chem_pac:62, chem_polymer:77, chem_naoh:29, chem_javen:19, chem_hcl:10, chem_citric:7, chem_genesys:6,
+     detail_json: "{\"apvao_roa1_sang\": 5.6, \"apvao_roa1_toi\": 5.6, \"apreject_roa1_sang\": 2.9, \"apreject_roa1_toi\": 2.9, \"apvao_roa2_sang\": 5.6, \"apvao_roa2_toi\": 5.6, \"apreject_roa2_sang\": 2.9, \"apreject_roa2_toi\": 2.9, \"apvao_roa3_sang\": 5.6, \"apvao_roa3_toi\": 5.6, \"apreject_roa3_sang\": 2.9, \"apreject_roa3_toi\": 2.9, \"apvao_rob1_sang\": 5.6, \"apvao_rob1_toi\": 5.6, \"apreject_rob1_sang\": 2.9, \"apreject_rob1_toi\": 2.9, \"apvao_rob2_sang\": 5.6, \"apvao_rob2_toi\": 5.6, \"apreject_rob2_sang\": 2.9, \"apreject_rob2_toi\": 2.9, \"apvao_rob3_sang\": 5.6, \"apvao_rob3_toi\": 5.6, \"apreject_rob3_sang\": 2.9, \"apreject_rob3_toi\": 2.9, \"tds_loc_uf_a_sang\": 212, \"tds_loc_uf_a_toi\": 212, \"tds_loc_uf_b_sang\": 214, \"tds_loc_uf_b_toi\": 214}", chem_pac:62, chem_polymer:77, chem_naoh:29, chem_javen:19, chem_hcl:10, chem_citric:7, chem_genesys:6,
      tasks_done:'Kiểm tra tồn kho hóa chất, Kiểm tra pH/TDS/ORP đầu ra', notes:''},
     {timestamp:'2026-07-22T19:00:00.000Z', date:'2026-07-22', shift:'Ca tối', username:'kythuat01', fullname:'Lê Văn C',
      influent_m3:605, ro_permeate_m3:405, pump_to_yy_m3:388, recovery_pct:66.9, ph_ro:6.8, tds_ro:58, orp_ro:246, color_ro:12, turbidity_ro:5.2,
-     chem_pac:63, chem_polymer:78, chem_naoh:30, chem_javen:19, chem_hcl:10, chem_citric:8, chem_genesys:6,
+     detail_json: "{\"apvao_roa1_sang\": 5.7, \"apvao_roa1_toi\": 5.7, \"apreject_roa1_sang\": 3.1, \"apreject_roa1_toi\": 3.1, \"apvao_roa2_sang\": 5.7, \"apvao_roa2_toi\": 5.7, \"apreject_roa2_sang\": 3.1, \"apreject_roa2_toi\": 3.1, \"apvao_roa3_sang\": 5.7, \"apvao_roa3_toi\": 5.7, \"apreject_roa3_sang\": 3.1, \"apreject_roa3_toi\": 3.1, \"apvao_rob1_sang\": 5.7, \"apvao_rob1_toi\": 5.7, \"apreject_rob1_sang\": 3.1, \"apreject_rob1_toi\": 3.1, \"apvao_rob2_sang\": 5.7, \"apvao_rob2_toi\": 5.7, \"apreject_rob2_sang\": 3.1, \"apreject_rob2_toi\": 3.1, \"apvao_rob3_sang\": 5.7, \"apvao_rob3_toi\": 5.7, \"apreject_rob3_sang\": 3.1, \"apreject_rob3_toi\": 3.1, \"tds_loc_uf_a_sang\": 218, \"tds_loc_uf_a_toi\": 218, \"tds_loc_uf_b_sang\": 219, \"tds_loc_uf_b_toi\": 219}", chem_pac:63, chem_polymer:78, chem_naoh:30, chem_javen:19, chem_hcl:10, chem_citric:8, chem_genesys:6,
      tasks_done:'Ghi chỉ số đồng hồ nước', notes:''},
     {timestamp:'2026-07-23T07:00:00.000Z', date:'2026-07-23', shift:'Ca ngày', username:'admin', fullname:'Dương Đại Long',
      influent_m3:645, ro_permeate_m3:430, pump_to_yy_m3:410, recovery_pct:66.7, ph_ro:6.8, tds_ro:58, orp_ro:245, color_ro:12, turbidity_ro:5.2,
-     chem_pac:65, chem_polymer:80, chem_naoh:31, chem_javen:21, chem_hcl:10, chem_citric:8, chem_genesys:6,
+     detail_json: "{\"apvao_roa1_sang\": 5.9, \"apvao_roa1_toi\": 5.9, \"apreject_roa1_sang\": 3.4, \"apreject_roa1_toi\": 3.4, \"apvao_roa2_sang\": 5.9, \"apvao_roa2_toi\": 5.9, \"apreject_roa2_sang\": 3.4, \"apreject_roa2_toi\": 3.4, \"apvao_roa3_sang\": 5.9, \"apvao_roa3_toi\": 5.9, \"apreject_roa3_sang\": 3.4, \"apreject_roa3_toi\": 3.4, \"apvao_rob1_sang\": 5.9, \"apvao_rob1_toi\": 5.9, \"apreject_rob1_sang\": 3.4, \"apreject_rob1_toi\": 3.4, \"apvao_rob2_sang\": 5.9, \"apvao_rob2_toi\": 5.9, \"apreject_rob2_sang\": 3.4, \"apreject_rob2_toi\": 3.4, \"apvao_rob3_sang\": 5.9, \"apvao_rob3_toi\": 5.9, \"apreject_rob3_sang\": 3.4, \"apreject_rob3_toi\": 3.4, \"tds_loc_uf_a_sang\": 225, \"tds_loc_uf_a_toi\": 225, \"tds_loc_uf_b_sang\": 227, \"tds_loc_uf_b_toi\": 227}", chem_pac:65, chem_polymer:80, chem_naoh:31, chem_javen:21, chem_hcl:10, chem_citric:8, chem_genesys:6,
      tasks_done:'Kiểm tra áp lực bơm RO, Ghi chỉ số đồng hồ nước', notes:''}
   ],
   cipLog:[
