@@ -395,7 +395,8 @@
       <div id="si_msg" class="ef-msg"></div>
 
       <h4 style="margin-top:16px;">Lịch sử đặt hàng hóa chất</h4>
-      <div style="overflow-x:auto;"><table><thead><tr><th>Ngày</th><th>Hóa chất</th><th>Số lượng</th><th>Nhà cung cấp</th><th>Ghi chú</th></tr></thead><tbody id="stockInBody"></tbody></table></div>
+      <p style="font-size:10px;color:var(--gray2);margin:0 0 8px;">Các dòng có 🧾 là do nhân viên vận hành nhập tại công trình kèm ảnh hóa đơn — bấm "Xem" để mở ảnh, tải về máy nếu cần lưu lại.</p>
+      <div style="overflow-x:auto;"><table><thead><tr><th>Ngày</th><th>Hóa chất</th><th>Số lượng</th><th>Nhà cung cấp</th><th>Hóa đơn</th><th>Ghi chú</th></tr></thead><tbody id="stockInBody"></tbody></table></div>
     </div>
 
     <div class="panel" id="panel-pChemDose">
@@ -2103,9 +2104,10 @@ function renderDashboard(d){
   }).join('');
 
   // Chemical stock-in log
-  document.getElementById('stockInBody').innerHTML = (d.chemicalStockIn||[]).map(r=>
-    `<tr><td>${r.date||''}</td><td>${r.chemical||''}</td><td>${r.quantity||''} ${r.unit||''}</td><td>${r.supplier||''}</td><td>${r.note||''}</td></tr>`
-  ).join('') || '<tr><td colspan="5" style="color:var(--gray);">Chưa có dữ liệu.</td></tr>';
+  document.getElementById('stockInBody').innerHTML = (d.chemicalStockIn||[]).map(r=>{
+    const invoiceLink = r.invoice_url ? `<a href="${r.invoice_url}" target="_blank">🧾 Xem</a>` : '—';
+    return `<tr><td>${r.date||''}</td><td>${r.chemical||''}</td><td>${r.quantity||''} ${r.unit||''}</td><td>${r.supplier||''}</td><td>${invoiceLink}</td><td>${r.note||''}</td></tr>`;
+  }).join('') || '<tr><td colspan="6" style="color:var(--gray);">Chưa có dữ liệu.</td></tr>';
   renderDoseChart();
   renderSupplierOptions(d);
   renderChemReceiveTable(d);
