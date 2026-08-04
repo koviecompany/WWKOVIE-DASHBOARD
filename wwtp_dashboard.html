@@ -307,7 +307,7 @@
 
     <div class="panel wide tall" id="panel-p5">
       <h3>BẢNG TỔNG HỢP VẬN HÀNH (Operating Summary)</h3>
-      <div style="overflow-x:auto;"><table><thead><tr><th>Chỉ tiêu</th><th>Kỳ này</th><th>Kỳ trước</th><th>Chênh lệch</th><th>%</th></tr></thead><tbody id="summaryBody"></tbody></table></div>
+      <div style="overflow-x:auto;"><table><thead><tr><th>Chỉ tiêu</th><th>Hôm nay</th><th>Hôm qua</th><th>Chênh lệch</th><th>%</th></tr></thead><tbody id="summaryBody"></tbody></table></div>
     </div>
     <div class="panel eq" id="panel-p6"><h3>LƯU LƯỢNG THEO HỆ UF / RO</h3><div id="lineContribution"></div></div>
     <div class="panel" id="panel-p7"><h3>CHÊNH LỆCH CHI PHÍ HÓA CHẤT (so với kỳ trước)</h3><div class="chart-wrap"><canvas id="waterfall"></canvas></div></div>
@@ -323,12 +323,19 @@
     </div>
     <div class="panel eq" id="panel-p9">
       <h3>TỔNG HÓA CHẤT SỬ DỤNG
-        <select id="chemViewMode" onchange="renderChemByMode()" style="background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:10px;padding:3px 6px;">
-          <option value="ca">Theo ca</option>
-          <option value="ngay">Theo ngày</option>
-          <option value="tuan">Theo tuần</option>
-          <option value="thang" selected>Theo tháng</option>
-        </select>
+        <span style="display:flex;gap:6px;align-items:center;">
+          <select id="chemViewMode" onchange="onChemViewModeChange()" style="background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:10px;padding:3px 6px;">
+            <option value="ca">Theo ca</option>
+            <option value="ngay">Theo ngày</option>
+            <option value="tuan">Theo tuần</option>
+            <option value="thang" selected>Theo tháng</option>
+          </select>
+          <span id="chemDateRange" style="display:none;align-items:center;gap:4px;">
+            <input type="date" id="chemDateFrom" onchange="renderChemByMode()" style="background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:10px;padding:3px 5px;width:118px;">
+            <span style="color:var(--gray);font-size:10px;">–</span>
+            <input type="date" id="chemDateTo" onchange="renderChemByMode()" style="background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:10px;padding:3px 5px;width:118px;">
+          </span>
+        </span>
       </h3>
       <div class="chart-wrap"><canvas id="chemTrend"></canvas></div>
     </div>
@@ -1749,6 +1756,18 @@ function getMondayOfWeek(date){
   return d;
 }
 
+function onChemViewModeChange(){
+  const mode = document.getElementById('chemViewMode').value;
+  document.getElementById('chemDateRange').style.display = mode==='ngay' ? 'flex' : 'none';
+  if(mode==='ngay' && !document.getElementById('chemDateFrom').value){
+    const today = new Date();
+    const from = new Date(today); from.setDate(today.getDate()-6);
+    document.getElementById('chemDateFrom').value = from.toISOString().slice(0,10);
+    document.getElementById('chemDateTo').value = today.toISOString().slice(0,10);
+  }
+  renderChemByMode();
+}
+
 function renderChemByMode(){
   if(!lastData) return;
   const mode = document.getElementById('chemViewMode')?.value || 'thang';
@@ -1782,22 +1801,25 @@ function renderChemByMode(){
       CHEM_FIELDS.forEach(c=>{ bucketsByChem[c.key][key]+=Number(e[c.key]||0); });
     });
   } else if(mode==='ngay'){
-    // Hiển thị theo ngày trong TUẦN HIỆN TẠI: Thứ 2 -> Thứ 7
-    const monday = getMondayOfWeek(new Date());
-    const dayNames = ['Thứ 2','Thứ 3','Thứ 4','Thứ 5','Thứ 6','Thứ 7'];
-    labels = dayNames.map((n,i)=>{
-      const d = new Date(monday); d.setDate(monday.getDate()+i);
-      return `${n} (${dateLabel(d)})`;
-    });
-    CHEM_FIELDS.forEach(c=>{ labels.forEach(l=>bucketsByChem[c.key][l]=0); });
+    // Hiển thị theo từng ngày trong khoảng NGƯỜI DÙNG TỰ CHỌN (Từ ngày - Đến ngày)
+    const fromVal = document.getElementById('chemDateFrom')?.value;
+    const toVal = document.getElementById('chemDateTo')?.value;
+    const fromDt = fromVal ? parseDateSmart(fromVal) : null;
+    const toDt = toVal ? parseDateSmart(toVal) : null;
     entries.forEach(e=>{
       const dt = parseDateSmart(e.date);
       if(!dt) return;
-      const diffDays = Math.floor((dt - monday)/86400000);
-      if(diffDays<0 || diffDays>5) return;
-      const key = labels[diffDays];
-      CHEM_FIELDS.forEach(c=>{ bucketsByChem[c.key][key]+=Number(e[c.key]||0); });
+      if(fromDt && dt < fromDt) return;
+      if(toDt && dt > toDt) return;
+      const key = dateLabel(dt);
+      if(labels.indexOf(key)===-1) labels.push(key);
+      CHEM_FIELDS.forEach(c=>{ bucketsByChem[c.key][key] = (bucketsByChem[c.key][key]||0) + Number(e[c.key]||0); });
     });
+    labels.sort((a,b)=>{
+      const [da,ma]=a.split('/').map(Number), [db,mb]=b.split('/').map(Number);
+      return (ma-mb) || (da-db);
+    });
+    if(labels.length===0){ labels=['Không có dữ liệu trong khoảng đã chọn']; }
   } else if(mode==='tuan'){
     entries.forEach(e=>{
       const dt = parseDateSmart(e.date);
