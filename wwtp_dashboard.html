@@ -327,13 +327,32 @@
     <div class="panel wide" id="panel-pChemStockIn">
       <h3>NHẬP KHO HÓA CHẤT</h3>
       <div class="ef-row">
-        <label>Ngày nhập</label><input type="date" id="si_date">
+        <label>Loại nhập</label>
+        <select id="si_type" onchange="onStockInTypeChange()">
+          <option value="nhanhang">Nhận hàng tại công trình (Vận hành)</option>
+          <option value="dathang">Đặt hàng (Thủ kho)</option>
+        </select>
+      </div>
+
+      <div class="ef-row">
+        <label>Ngày</label><input type="date" id="si_date">
         <label>Hóa chất</label>
         <select id="si_chemical">
           <option>PAC 10%</option><option>Polymer 0.05%</option><option>NaOH 10%</option>
           <option>Javen 10%</option><option>HCl 10%</option><option>Citric Acid</option><option>Genesys LS</option>
         </select>
       </div>
+
+      <div class="ef-row" id="si_row_nhanhang">
+        <label>Ca nhận</label>
+        <select id="si_shift"><option value="Ca ngày">Ca ngày</option><option value="Ca tối">Ca tối</option></select>
+        <label>Giờ nhận hàng</label><input type="time" id="si_time_receive">
+      </div>
+
+      <div class="ef-row" id="si_row_dathang" style="display:none;">
+        <label>Ngày giờ đặt hàng</label><input type="datetime-local" id="si_order_datetime">
+      </div>
+
       <div class="ef-row">
         <label>Số lượng</label><input type="number" step="0.1" id="si_quantity" style="width:100px;">
         <label>Đơn vị</label>
@@ -345,7 +364,18 @@
       <div id="si_msg" class="ef-msg"></div>
 
       <h4 style="margin-top:16px;">Lịch sử nhập kho hóa chất</h4>
-      <div style="overflow-x:auto;"><table><thead><tr><th>Ngày</th><th>Hóa chất</th><th>Số lượng</th><th>Nhà cung cấp</th><th>Ghi chú</th></tr></thead><tbody id="stockInBody"></tbody></table></div>
+      <div style="overflow-x:auto;"><table><thead><tr><th>Ngày</th><th>Loại</th><th>Hóa chất</th><th>Số lượng</th><th>Ca/Giờ</th><th>Nhà cung cấp</th><th>Ghi chú</th></tr></thead><tbody id="stockInBody"></tbody></table></div>
+
+      <h4 style="margin-top:18px;">📊 Định mức hóa chất trung bình / m³ nước thải
+        <select id="doseViewMode" onchange="renderDoseChart()" style="background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:10px;padding:3px 6px;margin-left:8px;">
+          <option value="ca">Theo ca</option>
+          <option value="ngay">Theo ngày</option>
+          <option value="tuan">Theo tuần</option>
+          <option value="thang" selected>Theo tháng</option>
+        </select>
+      </h4>
+      <p style="font-size:10px;color:var(--gray2);margin:0 0 8px;">= Tổng lượng hóa chất dùng ÷ Tổng lưu lượng nước thải đầu vào trong cùng khoảng thời gian, tính từ báo cáo ca của nhân viên vận hành.</p>
+      <div class="chart-wrap" style="min-height:220px;"><canvas id="doseChart"></canvas></div>
     </div>
 
     <div class="panel wide" id="panel-pAlerts"><h3>CẢNH BÁO HỆ THỐNG</h3><div id="alertsList"></div></div>
@@ -982,16 +1012,59 @@ function computeCipSmartAlerts(d){
 }
 
 /* ================= NHẬP KHO HÓA CHẤT ================= */
+/* ================= ĐỊNH MỨC HÓA CHẤT TRUNG BÌNH / M³ NƯỚC THẢI ================= */
+function renderDoseChart(){
+  if(!lastData) return;
+  const mode = document.getElementById('doseViewMode')?.value || 'thang';
+  const b = getTimeBuckets(mode);
+  const labels = b.labels;
+
+  const datasets = CHEM_FIELDS.map(c=>{
+    const data = labels.map(l=>{
+      const entries = b.groups[l] || [];
+      const totalChem = entries.reduce((a,e)=>a+Number(e[c.key]||0), 0);
+      const totalInfluent = entries.reduce((a,e)=>a+Number(e.influent_m3||0), 0);
+      return totalInfluent>0 ? +(totalChem/totalInfluent).toFixed(4) : 0;
+    });
+    return { label:c.label, data, backgroundColor:c.color, borderRadius:3 };
+  });
+
+  if(charts.doseChart) charts.doseChart.destroy();
+  const canvas = document.getElementById('doseChart');
+  if(!canvas) return;
+  charts.doseChart = new Chart(canvas, {
+    type:'bar',
+    data:{labels, datasets},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'bottom',labels:{boxWidth:8,boxHeight:8,padding:6,font:{size:8.5}}}},
+      scales:{
+        y:{grid:{color:'#26262a'},title:{display:true,text:'lít (hoặc kg) / m³',color:'#9aa0a6',font:{size:9}}},
+        x:{grid:{display:false},ticks:{font:{size:8.5}}}
+      }}
+  });
+}
+
+function onStockInTypeChange(){
+  const type = document.getElementById('si_type').value;
+  document.getElementById('si_row_nhanhang').style.display = (type==='nhanhang') ? 'flex' : 'none';
+  document.getElementById('si_row_dathang').style.display = (type==='dathang') ? 'flex' : 'none';
+}
+
 async function saveStockIn(){
   const msg = document.getElementById('si_msg');
+  const type = document.getElementById('si_type').value;
   const entry = {
     date: document.getElementById('si_date').value,
+    type: type === 'nhanhang' ? 'Nhận hàng tại công trình' : 'Đặt hàng',
     chemical: document.getElementById('si_chemical').value,
     quantity: document.getElementById('si_quantity').value,
     unit: document.getElementById('si_unit').value,
     supplier: document.getElementById('si_supplier').value,
     note: document.getElementById('si_note').value,
-    username: currentUser ? currentUser.username : ''
+    username: currentUser ? currentUser.username : '',
+    shift: type==='nhanhang' ? document.getElementById('si_shift').value : '',
+    time_receive: type==='nhanhang' ? document.getElementById('si_time_receive').value : '',
+    order_datetime: type==='dathang' ? document.getElementById('si_order_datetime').value : ''
   };
   if(!entry.date || !entry.quantity){ msg.style.color='var(--red)'; msg.textContent='Vui lòng nhập ngày và số lượng.'; return; }
 
@@ -1511,7 +1584,7 @@ function getTimeBuckets(mode){
       if(diffDays<0 || diffDays>5) return;
       groups[labels[diffDays]].push(e);
     });
-  } else { // tuan
+  } else if(mode==='tuan'){
     entries.forEach(e=>{
       const dt = parseDateSmart(e.date);
       if(!dt) return;
@@ -1522,6 +1595,16 @@ function getTimeBuckets(mode){
     });
     labels.sort();
     if(labels.length>8) labels = labels.slice(-8);
+  } else { // thang
+    entries.forEach(e=>{
+      const dt = parseDateSmart(e.date);
+      if(!dt) return;
+      const key = monthLabel(dt);
+      if(labels.indexOf(key)===-1) labels.push(key);
+      if(!groups[key]) groups[key]=[];
+      groups[key].push(e);
+    });
+    if(labels.length>12) labels = labels.slice(-12);
   }
   return { labels, groups };
 }
@@ -1588,14 +1671,26 @@ function renderVolMonth(){
 }
 
 /* ================= TỔNG HÓA CHẤT: Theo ca / ngày / tuần / tháng ================= */
+/* Bảng màu dùng chung cho TẤT CẢ biểu đồ liên quan hóa chất — đồng bộ theo đúng tên hóa chất trong Sheet */
+const CHEMICAL_COLORS = {
+  'PAC 10%': '#f5811f',
+  'Polymer 0.05%': '#4fc3f7',
+  'NaOH 10%': '#3ecf8e',
+  'Javen 10%': '#e5484d',
+  'HCl 10%': '#b388ff',
+  'Citric Acid': '#ffd54f',
+  'Genesys LS': '#ff8a65'
+};
+function colorForChemical(name){ return CHEMICAL_COLORS[name] || '#9aa0a6'; }
+
 const CHEM_FIELDS = [
-  {key:'chem_pac', label:'PAC', color:'#f5811f'},
-  {key:'chem_polymer', label:'PAM', color:'#4fc3f7'},
-  {key:'chem_naoh', label:'NaOH', color:'#3ecf8e'},
-  {key:'chem_javen', label:'NaOCl', color:'#e5484d'},
-  {key:'chem_hcl', label:'HCl', color:'#b388ff'},
-  {key:'chem_citric', label:'Citric Acid', color:'#d9d9d9'},
-  {key:'chem_genesys', label:'Genesys LS', color:'#ffb066'}
+  {key:'chem_pac', label:'PAC', color:CHEMICAL_COLORS['PAC 10%']},
+  {key:'chem_polymer', label:'PAM', color:CHEMICAL_COLORS['Polymer 0.05%']},
+  {key:'chem_naoh', label:'NaOH', color:CHEMICAL_COLORS['NaOH 10%']},
+  {key:'chem_javen', label:'NaOCl', color:CHEMICAL_COLORS['Javen 10%']},
+  {key:'chem_hcl', label:'HCl', color:CHEMICAL_COLORS['HCl 10%']},
+  {key:'chem_citric', label:'Citric Acid', color:CHEMICAL_COLORS['Citric Acid']},
+  {key:'chem_genesys', label:'Genesys LS', color:CHEMICAL_COLORS['Genesys LS']}
 ];
 
 function getMondayOfWeek(date){
@@ -1812,13 +1907,13 @@ function renderDashboard(d){
      <span>Mục tiêu: <b style="color:var(--white)">${compliance.target}%</b></span>
      <span>Chênh lệch: <b class="${(compliance.actual-compliance.target)>=0?'up-txt':'down-txt'}">${(compliance.actual-compliance.target).toFixed(1)} pp</b></span>`;
 
-  // Chemical usage (aggregate today by chemical)
+  // Chemical usage (aggregate today by chemical) — mỗi cột 1 màu riêng, đồng bộ với các biểu đồ khác
   const cu = d.chemicalUsage||[];
   const chemTotals = {};
   cu.forEach(r=>{ const key=r.chemical; chemTotals[key] = (chemTotals[key]||0) + Number(r.amount_used||0); });
   const chemLabels = Object.keys(chemTotals);
   charts.chemUsageChart = new Chart(document.getElementById('chemUsageChart'), {
-    type:'bar', data:{labels:chemLabels, datasets:[{data:chemLabels.map(k=>chemTotals[k]), backgroundColor:orange, borderRadius:4}]},
+    type:'bar', data:{labels:chemLabels, datasets:[{data:chemLabels.map(k=>chemTotals[k]), backgroundColor:chemLabels.map(k=>colorForChemical(k)), borderRadius:4}]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}, scales:{y:{grid:{color:grid}}, x:{grid:{display:false},ticks:{font:{size:9}}}}}
   });
 
@@ -1827,13 +1922,17 @@ function renderDashboard(d){
   const maxStock = Math.max(...inv.map(r=>Number(r.current_stock)||0), 1);
   document.getElementById('chemInventoryList').innerHTML = inv.map(r=>{
     const low = Number(r.current_stock) < Number(r.min_threshold);
-    return `<div class="bar-item"><div class="lbl">${r.chemical} <b style="${low?'color:var(--red)':''}">${r.current_stock} ${r.unit} ${low?'⚠️':''}</b></div>
-    <div class="bar-track"><div class="bar-fill ${low?'warn':''}" style="width:${(r.current_stock/maxStock*100)}%;"></div></div></div>`;
+    const barColor = low ? 'var(--red)' : colorForChemical(r.chemical);
+    return `<div class="bar-item"><div class="lbl"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${colorForChemical(r.chemical)};margin-right:5px;"></span>${r.chemical} <b style="${low?'color:var(--red)':''}">${r.current_stock} ${r.unit} ${low?'⚠️':''}</b></div>
+    <div class="bar-track"><div class="bar-fill" style="width:${(r.current_stock/maxStock*100)}%;background:${barColor};"></div></div></div>`;
   }).join('');
 
   // Chemical stock-in log
-  document.getElementById('stockInBody').innerHTML = (d.chemicalStockIn||[]).map(r=>
-    `<tr><td>${r.date||''}</td><td>${r.chemical||''}</td><td>${r.quantity||''} ${r.unit||''}</td><td>${r.supplier||''}</td><td>${r.note||''}</td></tr>`).join('') || '<tr><td colspan="5" style="color:var(--gray);">Chưa có dữ liệu.</td></tr>';
+  document.getElementById('stockInBody').innerHTML = (d.chemicalStockIn||[]).map(r=>{
+    const caGio = r.type==='Đặt hàng' ? (r.order_datetime||'') : `${r.shift||''} ${r.time_receive||''}`.trim();
+    return `<tr><td>${r.date||''}</td><td>${r.type||'—'}</td><td>${r.chemical||''}</td><td>${r.quantity||''} ${r.unit||''}</td><td>${caGio||'—'}</td><td>${r.supplier||''}</td><td>${r.note||''}</td></tr>`;
+  }).join('') || '<tr><td colspan="7" style="color:var(--gray);">Chưa có dữ liệu.</td></tr>';
+  renderDoseChart();
 
   renderAlerts(d);
   renderSettings();
@@ -1919,10 +2018,10 @@ const DEMO_DATA = {
     {chemical:'Genesys LS',current_stock:110,unit:'lít',min_threshold:60}
   ],
   chemicalStockIn:[
-    {date:'20/07/2026',chemical:'PAC 10%',quantity:500,unit:'lít',supplier:'Cty Hóa chất An Phát',note:''},
-    {date:'18/07/2026',chemical:'NaOH 10%',quantity:200,unit:'lít',supplier:'Cty Hóa chất An Phát',note:''},
-    {date:'15/07/2026',chemical:'Citric Acid',quantity:100,unit:'lít',supplier:'Cty TNHH Hóa Chất Miền Nam',note:''},
-    {date:'12/07/2026',chemical:'Genesys LS',quantity:80,unit:'lít',supplier:'Cty TNHH Hóa Chất Miền Nam',note:''}
+    {date:'20/07/2026',type:'Nhận hàng tại công trình',chemical:'PAC 10%',quantity:500,unit:'lít',supplier:'Cty Hóa chất An Phát',note:'',shift:'Ca ngày',time_receive:'09:30'},
+    {date:'18/07/2026',type:'Đặt hàng',chemical:'NaOH 10%',quantity:200,unit:'lít',supplier:'Cty Hóa chất An Phát',note:'',order_datetime:'2026-07-18T14:00'},
+    {date:'15/07/2026',type:'Nhận hàng tại công trình',chemical:'Citric Acid',quantity:100,unit:'lít',supplier:'Cty TNHH Hóa Chất Miền Nam',note:'',shift:'Ca tối',time_receive:'20:15'},
+    {date:'12/07/2026',type:'Đặt hàng',chemical:'Genesys LS',quantity:80,unit:'lít',supplier:'Cty TNHH Hóa Chất Miền Nam',note:'',order_datetime:'2026-07-12T10:00'}
   ],
   dailyEntries:[
     {timestamp:'2026-07-21T07:00:00.000Z', date:'2026-07-21', shift:'Ca ngày', username:'admin', fullname:'Dương Đại Long',
