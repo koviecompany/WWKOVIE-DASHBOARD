@@ -239,19 +239,6 @@
         <p>Trạm xử lý nước thải &amp; hệ thống RO — Nhà máy dệt nhuộm You Young Vina</p>
       </div>
       <div class="filters">
-        <div class="filter static">🏭 Nhà máy<b>Dệt nhuộm You Young Vina</b></div>
-        <div class="filter">
-          <span style="font-size:10px;">👁 Xem theo</span>
-          <select id="viewMode" onchange="onViewModeChange()">
-            <option value="ca">Ca</option>
-            <option value="ngay">Ngày</option>
-            <option value="tuan">Tuần</option>
-            <option value="thang" selected>Tháng</option>
-            <option value="nam">Năm</option>
-            <option value="khoang">Khoảng thời gian</option>
-          </select>
-        </div>
-        <div class="filter" id="viewModeExtra"></div>
         <button class="reset" onclick="refreshData()">🔄 Làm mới dữ liệu</button>
       </div>
     </div>
@@ -649,25 +636,6 @@ function kpiIconHtml(k){ return KPI_ICONS[k.id] || `<span style="font-size:17px;
 
 
 /* ================= VIEW MODE (Ca/Ngày/Tuần/Tháng/Năm/Khoảng thời gian) ================= */
-function onViewModeChange(){
-  const mode = document.getElementById('viewMode').value;
-  const extra = document.getElementById('viewModeExtra');
-  const today = new Date().toISOString().slice(0,10);
-  if(mode==='ca'){
-    extra.innerHTML = `<select id="vm_ca"><option>Ca ngày</option><option>Ca tối</option></select>`;
-  } else if(mode==='ngay'){
-    extra.innerHTML = `<input type="date" id="vm_date" value="${today}">`;
-  } else if(mode==='tuan'){
-    extra.innerHTML = `<input type="week" id="vm_week">`;
-  } else if(mode==='thang'){
-    extra.innerHTML = `<input type="month" id="vm_month" value="${today.slice(0,7)}">`;
-  } else if(mode==='nam'){
-    extra.innerHTML = `<input type="number" id="vm_year" style="width:70px;" value="${new Date().getFullYear()}">`;
-  } else if(mode==='khoang'){
-    extra.innerHTML = `<input type="date" id="vm_from" style="width:118px;">–<input type="date" id="vm_to" style="width:118px;">`;
-  }
-}
-
 /* ================= NAVIGATION ================= */
 const ALL_PANEL_IDS = ['p1','p2','p4','p5','p6','p7','p8','p9','p10','p11','p12','pChemUsage','pChemInventory','pChemStockIn','pChemDose','pAlerts','pSettings','pDataEntry','pCIP'];
 const PAGE_ICON = {overview:'🏠',nhap_lieu:'📝',baocao_vanhanh:'📊',luu_luong:'💧',hoa_chat:'🧴',chat_luong:'🧪',xu_huong:'📈',ke_hoach:'🎯',chenh_lech:'🔀',baocao:'📦',canh_bao:'🔔',cip:'🧽',cai_dat:'⚡'};
@@ -784,7 +752,6 @@ function enterApp(){
   document.getElementById('si_date').value = new Date().toISOString().slice(0,10);
   buildDetailForms();
   buildMechCleanBlocks();
-  onViewModeChange();
   applyPermissions();
   showPage('overview','Tổng quan');
 }
