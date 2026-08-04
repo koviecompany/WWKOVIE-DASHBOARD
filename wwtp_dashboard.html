@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>YOU YOUNG VINA - WWTP Dashboard</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <style>
   :root{
     --bg:#0e0e10; --panel:#18181b; --panel2:#1f1f22; --border:#2b2b2f;
@@ -470,17 +471,19 @@
           <div id="detailRoAB"></div>
         </details>
 
-        <h4>📷 Chụp ảnh đồng hồ đo</h4>
+        <h4>📷 Chụp ảnh đồng hồ đo <span style="font-size:9.5px;color:var(--gray2);font-weight:400;">(hệ thống sẽ tự đọc số và điền giúp — luôn kiểm tra lại trước khi lưu)</span></h4>
         <div class="ef-grid">
           <div>
             <label>Ảnh đồng hồ Nước thải đầu vào</label>
-            <input type="file" accept="image/*" capture="environment" id="ef_photo_influent" onchange="previewPhoto('ef_photo_influent','preview_influent')">
+            <input type="file" accept="image/*" capture="environment" id="ef_photo_influent" onchange="previewPhoto('ef_photo_influent','preview_influent'); runMeterOCR('ef_photo_influent','ef_influent','ocr_notice_influent')">
             <img id="preview_influent" style="display:none;max-width:130px;border-radius:8px;margin-top:6px;border:1px solid var(--border);">
+            <div id="ocr_notice_influent" class="ef-msg"></div>
           </div>
           <div>
             <label>Ảnh đồng hồ Nước sạch RO bơm cho YY</label>
-            <input type="file" accept="image/*" capture="environment" id="ef_photo_ro" onchange="previewPhoto('ef_photo_ro','preview_ro')">
+            <input type="file" accept="image/*" capture="environment" id="ef_photo_ro" onchange="previewPhoto('ef_photo_ro','preview_ro'); runMeterOCR('ef_photo_ro','ef_ro','ocr_notice_ro')">
             <img id="preview_ro" style="display:none;max-width:130px;border-radius:8px;margin-top:6px;border:1px solid var(--border);">
+            <div id="ocr_notice_ro" class="ef-msg"></div>
           </div>
         </div>
 
@@ -1267,6 +1270,44 @@ function clearTaskDetails(){
   document.getElementById('preview_incident').style.display = 'none';
 }
 
+/* ================= TỰ ĐỘNG ĐỌC SỐ TỪ ẢNH ĐỒNG HỒ (OCR - chạy ngay trên trình duyệt) ================= */
+function extractNumberFromOCR(text){
+  if(!text) return null;
+  const matches = text.match(/\d+[.,]?\d*/g);
+  if(!matches || matches.length===0) return null;
+  // Ưu tiên chuỗi số có nhiều chữ số nhất tìm được trong ảnh (thường là chỉ số đồng hồ, không phải số lẻ khác lẫn trong ảnh)
+  matches.sort((a,b)=> b.replace(/[.,]/g,'').length - a.replace(/[.,]/g,'').length);
+  return matches[0].replace(',', '.');
+}
+
+async function runMeterOCR(fileInputId, targetFieldId, noticeId){
+  const inp = document.getElementById(fileInputId);
+  const notice = document.getElementById(noticeId);
+  if(!inp.files || !inp.files[0]){ return; }
+  if(typeof Tesseract === 'undefined'){
+    notice.style.color = 'var(--gray)';
+    notice.textContent = 'Không tải được công cụ đọc ảnh, vui lòng nhập tay.';
+    return;
+  }
+  notice.style.color = 'var(--gray)';
+  notice.textContent = '🔍 Đang tự động đọc số từ ảnh...';
+  try{
+    const { data: { text } } = await Tesseract.recognize(inp.files[0], 'eng');
+    const num = extractNumberFromOCR(text);
+    if(num){
+      document.getElementById(targetFieldId).value = num;
+      notice.style.color = 'var(--orange)';
+      notice.textContent = `📷 Đã tự động đọc số: ${num} — vui lòng KIỂM TRA LẠI cho đúng với ảnh trước khi lưu, có thể đọc sai!`;
+    } else {
+      notice.style.color = 'var(--red)';
+      notice.textContent = '⚠️ Không tự đọc được số từ ảnh (ảnh mờ/khó đọc), vui lòng tự nhập số bằng tay.';
+    }
+  }catch(e){
+    notice.style.color = 'var(--red)';
+    notice.textContent = '⚠️ Lỗi khi đọc ảnh, vui lòng tự nhập số bằng tay.';
+  }
+}
+
 function previewPhoto(inputId, imgId){
   const inp = document.getElementById(inputId);
   const img = document.getElementById(imgId);
@@ -1311,6 +1352,8 @@ function clearEntryForm(){
   document.getElementById('ef_photo_ro').value = '';
   document.getElementById('preview_influent').style.display = 'none';
   document.getElementById('preview_ro').style.display = 'none';
+  document.getElementById('ocr_notice_influent').textContent = '';
+  document.getElementById('ocr_notice_ro').textContent = '';
   clearDetailFields();
   clearTaskDetails();
 }
