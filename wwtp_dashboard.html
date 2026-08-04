@@ -267,11 +267,6 @@
             <option value="ngay">Ca ngày (07h–19h)</option>
             <option value="toi">Ca tối (19h–07h)</option>
           </select>
-          <span id="flowDateRange" style="display:none;align-items:center;gap:4px;">
-            <input type="date" id="flowDateFrom" onchange="renderFlowChart()" style="background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:10px;padding:3px 5px;width:118px;">
-            <span style="color:var(--gray);font-size:10px;">–</span>
-            <input type="date" id="flowDateTo" onchange="renderFlowChart()" style="background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:10px;padding:3px 5px;width:118px;">
-          </span>
         </span>
       </h3>
       <div class="chart-wrap"><canvas id="flowTrend"></canvas></div>
@@ -317,11 +312,6 @@
             <option value="tuan">Theo tuần</option>
             <option value="thang" selected>Theo tháng</option>
           </select>
-          <span id="chemDateRange" style="display:none;align-items:center;gap:4px;">
-            <input type="date" id="chemDateFrom" onchange="renderChemByMode()" style="background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:10px;padding:3px 5px;width:118px;">
-            <span style="color:var(--gray);font-size:10px;">–</span>
-            <input type="date" id="chemDateTo" onchange="renderChemByMode()" style="background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:10px;padding:3px 5px;width:118px;">
-          </span>
         </span>
       </h3>
       <div class="chart-wrap"><canvas id="chemTrend"></canvas></div>
@@ -1526,25 +1516,18 @@ function getFlowBuckets(mode){
     const roVal = matched ? Number(matched.ro_permeate_m3||0) : 0;
     return { labels: hourLabels, influent: hourLabels.map(()=>infVal), roPermeate: hourLabels.map(()=>roVal) };
   } else if(mode==='ngay'){
-    const fromVal = document.getElementById('flowDateFrom')?.value;
-    const toVal = document.getElementById('flowDateTo')?.value;
-    const fromDt = fromVal ? parseDateSmart(fromVal) : null;
-    const toDt = toVal ? parseDateSmart(toVal) : null;
+    const monday = getMondayOfWeek(new Date());
+    const dayNames = ['Thứ 2','Thứ 3','Thứ 4','Thứ 5','Thứ 6','Thứ 7'];
+    labels = dayNames.map((n,i)=>{ const d=new Date(monday); d.setDate(monday.getDate()+i); return `${n} (${dateLabel(d)})`; });
+    labels.forEach(l=>{ infBucket[l]=0; roBucket[l]=0; });
     entries.forEach(e=>{
       const dt = parseDateSmart(e.date);
       if(!dt) return;
-      if(fromDt && dt < fromDt) return;
-      if(toDt && dt > toDt) return;
-      const key = dateLabel(dt);
-      if(labels.indexOf(key)===-1) labels.push(key);
-      infBucket[key] = (infBucket[key]||0) + Number(e.influent_m3||0);
-      roBucket[key] = (roBucket[key]||0) + Number(e.ro_permeate_m3||0);
+      const diffDays = Math.floor((dt-monday)/86400000);
+      if(diffDays<0 || diffDays>5) return;
+      const key = labels[diffDays];
+      infBucket[key]+=Number(e.influent_m3||0); roBucket[key]+=Number(e.ro_permeate_m3||0);
     });
-    labels.sort((a,b)=>{
-      const [da,ma]=a.split('/').map(Number), [db,mb]=b.split('/').map(Number);
-      return (ma-mb) || (da-db);
-    });
-    if(labels.length===0){ labels=['Không có dữ liệu trong khoảng đã chọn']; infBucket[labels[0]]=0; roBucket[labels[0]]=0; }
   } else { // tuan
     entries.forEach(e=>{
       const dt = parseDateSmart(e.date);
@@ -1569,13 +1552,6 @@ function computeUFROSeries(influent){
 function onFlowViewModeChange(){
   const mode = document.getElementById('flowViewMode').value;
   document.getElementById('flowCaSelect').style.display = mode==='ca' ? 'inline-block' : 'none';
-  document.getElementById('flowDateRange').style.display = mode==='ngay' ? 'flex' : 'none';
-  if(mode==='ngay' && !document.getElementById('flowDateFrom').value){
-    const today = new Date();
-    const from = new Date(today); from.setDate(today.getDate()-6);
-    document.getElementById('flowDateFrom').value = from.toISOString().slice(0,10);
-    document.getElementById('flowDateTo').value = today.toISOString().slice(0,10);
-  }
   renderFlowChart();
 }
 
@@ -1745,14 +1721,6 @@ function getMondayOfWeek(date){
 }
 
 function onChemViewModeChange(){
-  const mode = document.getElementById('chemViewMode').value;
-  document.getElementById('chemDateRange').style.display = mode==='ngay' ? 'flex' : 'none';
-  if(mode==='ngay' && !document.getElementById('chemDateFrom').value){
-    const today = new Date();
-    const from = new Date(today); from.setDate(today.getDate()-6);
-    document.getElementById('chemDateFrom').value = from.toISOString().slice(0,10);
-    document.getElementById('chemDateTo').value = today.toISOString().slice(0,10);
-  }
   renderChemByMode();
 }
 
@@ -1789,25 +1757,22 @@ function renderChemByMode(){
       CHEM_FIELDS.forEach(c=>{ bucketsByChem[c.key][key]+=Number(e[c.key]||0); });
     });
   } else if(mode==='ngay'){
-    // Hiển thị theo từng ngày trong khoảng NGƯỜI DÙNG TỰ CHỌN (Từ ngày - Đến ngày)
-    const fromVal = document.getElementById('chemDateFrom')?.value;
-    const toVal = document.getElementById('chemDateTo')?.value;
-    const fromDt = fromVal ? parseDateSmart(fromVal) : null;
-    const toDt = toVal ? parseDateSmart(toVal) : null;
+    // Hiển thị theo ngày trong TUẦN HIỆN TẠI: Thứ 2 -> Thứ 7
+    const monday = getMondayOfWeek(new Date());
+    const dayNames = ['Thứ 2','Thứ 3','Thứ 4','Thứ 5','Thứ 6','Thứ 7'];
+    labels = dayNames.map((n,i)=>{
+      const d = new Date(monday); d.setDate(monday.getDate()+i);
+      return `${n} (${dateLabel(d)})`;
+    });
+    CHEM_FIELDS.forEach(c=>{ labels.forEach(l=>bucketsByChem[c.key][l]=0); });
     entries.forEach(e=>{
       const dt = parseDateSmart(e.date);
       if(!dt) return;
-      if(fromDt && dt < fromDt) return;
-      if(toDt && dt > toDt) return;
-      const key = dateLabel(dt);
-      if(labels.indexOf(key)===-1) labels.push(key);
-      CHEM_FIELDS.forEach(c=>{ bucketsByChem[c.key][key] = (bucketsByChem[c.key][key]||0) + Number(e[c.key]||0); });
+      const diffDays = Math.floor((dt - monday)/86400000);
+      if(diffDays<0 || diffDays>5) return;
+      const key = labels[diffDays];
+      CHEM_FIELDS.forEach(c=>{ bucketsByChem[c.key][key]+=Number(e[c.key]||0); });
     });
-    labels.sort((a,b)=>{
-      const [da,ma]=a.split('/').map(Number), [db,mb]=b.split('/').map(Number);
-      return (ma-mb) || (da-db);
-    });
-    if(labels.length===0){ labels=['Không có dữ liệu trong khoảng đã chọn']; }
   } else if(mode==='tuan'){
     entries.forEach(e=>{
       const dt = parseDateSmart(e.date);
