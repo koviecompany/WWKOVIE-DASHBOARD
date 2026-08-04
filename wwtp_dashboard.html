@@ -373,7 +373,13 @@
         <label>Số lượng</label><input type="number" step="0.1" id="si_quantity" style="width:100px;">
         <label>Đơn vị</label>
         <select id="si_unit"><option value="lít">lít</option><option value="kg">kg</option></select>
-        <label>Nhà cung cấp</label><input type="text" id="si_supplier" style="min-width:160px;">
+        <label>Nhà cung cấp</label>
+        <select id="si_supplier" onchange="onSupplierChange()" style="min-width:180px;">
+          <option value="Cty Hóa chất Tín Thành">Cty Hóa chất Tín Thành</option>
+          <option value="Cty TNHH Hóa Chất Miền Nam">Cty TNHH Hóa Chất Miền Nam</option>
+          <option value="__khac__">Khác (nhập tên)</option>
+        </select>
+        <input type="text" id="si_supplier_other" placeholder="Nhập tên nhà cung cấp..." style="display:none;min-width:180px;">
       </div>
       <div class="ef-row"><label>Ghi chú</label><input type="text" id="si_note" style="min-width:220px;"></div>
       <div class="ef-actions"><button class="btn-save" onclick="saveStockIn()">💾 Lưu đặt hàng</button></div>
@@ -1099,6 +1105,15 @@ function onStockInChemicalChange(){
   unitEl.value = ORDER_DEFAULT_UNIT[chem] || 'lít';
 }
 
+function onSupplierChange(){
+  const sel = document.getElementById('si_supplier').value;
+  document.getElementById('si_supplier_other').style.display = (sel==='__khac__') ? 'inline-block' : 'none';
+}
+function getSupplierValue(){
+  const sel = document.getElementById('si_supplier').value;
+  return sel==='__khac__' ? document.getElementById('si_supplier_other').value : sel;
+}
+
 async function saveStockIn(){
   const msg = document.getElementById('si_msg');
   const entry = {
@@ -1106,7 +1121,7 @@ async function saveStockIn(){
     chemical: document.getElementById('si_chemical').value,
     quantity: document.getElementById('si_quantity').value,
     unit: document.getElementById('si_unit').value,
-    supplier: document.getElementById('si_supplier').value,
+    supplier: getSupplierValue(),
     note: document.getElementById('si_note').value,
     username: currentUser ? currentUser.username : ''
   };
@@ -1118,7 +1133,7 @@ async function saveStockIn(){
       const data = await res.json();
       if(data.success){
         msg.style.color='var(--green)'; msg.textContent = data.message;
-        document.getElementById('si_quantity').value=''; document.getElementById('si_supplier').value=''; document.getElementById('si_note').value='';
+        document.getElementById('si_quantity').value=''; document.getElementById('si_supplier').selectedIndex=0; document.getElementById('si_supplier_other').value=''; document.getElementById('si_supplier_other').style.display='none'; document.getElementById('si_note').value='';
         await loadRealData();
       } else { msg.style.color='var(--red)'; msg.textContent = data.message || 'Lưu thất bại'; }
     }catch(e){ msg.style.color='var(--red)'; msg.textContent='Không kết nối được backend.'; }
@@ -1129,7 +1144,7 @@ async function saveStockIn(){
     const inv = (lastData.chemicalInventory||[]).find(c=>c.chemical===entry.chemical);
     if(inv) inv.current_stock = Number(inv.current_stock||0) + Number(entry.quantity||0);
     msg.style.color='var(--orange)'; msg.textContent='Chế độ demo: đã thêm tạm (không lưu thật vào Google Sheets).';
-    document.getElementById('si_quantity').value=''; document.getElementById('si_supplier').value=''; document.getElementById('si_note').value='';
+    document.getElementById('si_quantity').value=''; document.getElementById('si_supplier').selectedIndex=0; document.getElementById('si_supplier_other').value=''; document.getElementById('si_supplier_other').style.display='none'; document.getElementById('si_note').value='';
     renderDashboard(lastData);
   }
 }
