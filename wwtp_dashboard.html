@@ -408,17 +408,17 @@
           <div><label>Độ đục (NTU)</label><input type="number" id="ef_turbidity" placeholder="VD: 5"></div>
         </div>
 
-        <p style="font-size:10px;color:var(--gray2);margin:2px 0 0;">Nếu cần ghi chi tiết từng điểm đo (Bể lắng, TMF, Lọc UF, Lọc RO...) hoặc thông số bơm/áp suất RO A-B, bấm mở 2 mục bên dưới — không bắt buộc mỗi ca.</p>
+        <p style="font-size:10px;color:var(--gray2);margin:2px 0 0;">Bấm mở 2 mục bên dưới để ghi chi tiết từng điểm đo (Bể lắng, TMF, Lọc UF, Lọc RO...) và thông số bơm/áp suất RO A-B.</p>
 
-        <details class="ef-detail"><summary>📋 Chi tiết pH / TDS / ORP theo từng điểm (không bắt buộc)</summary>
+        <details class="ef-detail" open><summary>📋 Chi tiết pH / TDS / ORP theo từng điểm</summary>
           <div id="detailPhTdsOrp"></div>
         </details>
 
-        <details class="ef-detail"><summary>⚙️ Chi tiết thông số RO A & RO B (không bắt buộc)</summary>
+        <details class="ef-detail" open><summary>⚙️ Chi tiết thông số RO A & RO B</summary>
           <div id="detailRoAB"></div>
         </details>
 
-        <h4>📷 Chụp ảnh đồng hồ đo (không bắt buộc)</h4>
+        <h4>📷 Chụp ảnh đồng hồ đo</h4>
         <div class="ef-grid">
           <div>
             <label>Ảnh đồng hồ Nước thải đầu vào</label>
@@ -443,14 +443,8 @@
           <div><label>Genesys LS (chống cáu cặn)</label><input type="number" id="ef_genesys"></div>
         </div>
 
-        <h4>Công việc phải làm trong ca</h4>
-        <div class="ef-tasks" id="ef_tasks">
-          <label><input type="checkbox" value="Kiểm tra áp lực bơm RO">Kiểm tra áp lực bơm RO</label>
-          <label><input type="checkbox" value="Ghi chỉ số đồng hồ nước">Ghi chỉ số đồng hồ nước</label>
-          <label><input type="checkbox" value="Kiểm tra tồn kho hóa chất">Kiểm tra tồn kho hóa chất</label>
-          <label><input type="checkbox" value="Kiểm tra pH/TDS/ORP đầu ra">Kiểm tra pH/TDS/ORP đầu ra</label>
-          <label><input type="checkbox" value="Báo cáo sự cố (nếu có)">Báo cáo sự cố (nếu có)</label>
-        </div>
+        <h4>🧽 Vệ sinh CIP</h4>
+        <div class="ef-tasks" id="ef_tasks"></div>
 
         <!-- CIP -->
         <div class="task-block">
@@ -505,8 +499,21 @@
           </div>
         </div>
 
+        <h4>🚨 Báo cáo sự cố</h4>
+        <div class="task-block">
+          <label class="task-toggle"><input type="checkbox" id="task_incident" onchange="toggleTaskDetail('task_incident','taskDetail_incident')">Có sự cố trong ca (nếu có)</label>
+          <div class="task-detail" id="taskDetail_incident" style="display:none;">
+            <textarea id="ef_incident_desc" rows="3" placeholder="Mô tả sự cố: xảy ra ở đâu, hiện tượng gì, đã xử lý ra sao..."></textarea>
+            <div style="margin-top:8px;">
+              <label>Ảnh sự cố (nếu có)</label><br>
+              <input type="file" accept="image/*" capture="environment" id="ef_photo_incident" onchange="previewPhoto('ef_photo_incident','preview_incident')">
+              <img id="preview_incident" style="display:none;max-width:130px;border-radius:8px;margin-top:6px;border:1px solid var(--border);">
+            </div>
+          </div>
+        </div>
+
         <h4>Ghi chú thêm</h4>
-        <textarea id="ef_notes" rows="3" placeholder="Ghi chú sự cố, bất thường trong ca..."></textarea>
+        <textarea id="ef_notes" rows="3" placeholder="Ghi chú khác, bất thường trong ca..."></textarea>
 
         <div class="ef-actions">
           <button class="btn-save" onclick="saveEntry()">💾 Lưu báo cáo</button>
@@ -975,11 +982,11 @@ function toggleMechQty(slug){
 }
 
 function collectTasksDone(){
-  const simple = Array.from(document.querySelectorAll('#ef_tasks input[type=checkbox]:checked')).map(cb=>cb.value);
   const cip = (document.getElementById('task_cip')?.checked) ? ['CIP (vệ sinh hóa chất)'] : [];
   const mech = Array.from(document.querySelectorAll('.tmech-check:checked')).map(cb=>cb.value);
   const other = (document.getElementById('task_other')?.checked) ? ['Thay thế phụ kiện khác'] : [];
-  return simple.concat(cip, mech, other).join(', ');
+  const incident = (document.getElementById('task_incident')?.checked) ? ['Có sự cố'] : [];
+  return cip.concat(mech, other, incident).join(', ');
 }
 
 function collectTasksDetailJSON(){
@@ -1043,6 +1050,12 @@ function clearTaskDetails(){
   document.querySelectorAll('.tother-check').forEach(cb=>cb.checked=false);
   document.querySelectorAll('.tother-qty').forEach(i=>i.value='');
   const noteEl = document.querySelector('.tother-note'); if(noteEl) noteEl.value='';
+
+  const incident = document.getElementById('task_incident');
+  if(incident){ incident.checked=false; document.getElementById('taskDetail_incident').style.display='none'; }
+  document.getElementById('ef_incident_desc').value = '';
+  document.getElementById('ef_photo_incident').value = '';
+  document.getElementById('preview_incident').style.display = 'none';
 }
 
 function previewPhoto(inputId, imgId){
@@ -1097,11 +1110,13 @@ async function saveEntry(){
   const msg = document.getElementById('ef_msg');
   const photoInfluentFile = document.getElementById('ef_photo_influent').files[0];
   const photoRoFile = document.getElementById('ef_photo_ro').files[0];
-  let photoInfluentB64 = '', photoRoB64 = '';
+  const photoIncidentFile = document.getElementById('ef_photo_incident').files[0];
+  let photoInfluentB64 = '', photoRoB64 = '', photoIncidentB64 = '';
   msg.style.color = 'var(--gray)'; msg.textContent = 'Đang xử lý...';
   try{
     if(photoInfluentFile) photoInfluentB64 = await resizeImageFile(photoInfluentFile, 1000);
     if(photoRoFile) photoRoB64 = await resizeImageFile(photoRoFile, 1000);
+    if(photoIncidentFile) photoIncidentB64 = await resizeImageFile(photoIncidentFile, 1000);
   }catch(e){ /* ảnh lỗi thì bỏ qua, không chặn lưu số liệu */ }
 
   const entry = {
@@ -1128,8 +1143,11 @@ async function saveEntry(){
     notes: document.getElementById('ef_notes').value,
     detail_json: collectDetailFieldsJSON(),
     tasks_detail_json: collectTasksDetailJSON(),
+    has_incident: document.getElementById('task_incident')?.checked ? 'Có' : '',
+    incident_desc: document.getElementById('ef_incident_desc').value,
     photo_influent_base64: photoInfluentB64,
-    photo_ro_base64: photoRoB64
+    photo_ro_base64: photoRoB64,
+    photo_incident_base64: photoIncidentB64
   };
   if(!entry.date || !entry.shift){ msg.style.color='var(--red)'; msg.textContent='Vui lòng chọn ngày và ca.'; return; }
 
@@ -1157,8 +1175,10 @@ function renderEntriesTable(d){
   document.getElementById('entriesBody').innerHTML = rows.map(r=>{
     let photos = '';
     if(r.photo_influent_url) photos += `<a href="${r.photo_influent_url}" target="_blank" title="Ảnh đồng hồ đầu vào">📷1</a> `;
-    if(r.photo_ro_url) photos += `<a href="${r.photo_ro_url}" target="_blank" title="Ảnh đồng hồ RO">📷2</a>`;
-    return `<tr><td>${r.date||''}</td><td>${r.shift||''}</td><td>${r.fullname||r.username||''}</td><td>${r.influent_m3||''}</td><td>${r.ro_permeate_m3||''}</td><td>${r.ph_ro||''}</td><td>${photos||'—'}</td><td>${r.notes||''}</td></tr>`;
+    if(r.photo_ro_url) photos += `<a href="${r.photo_ro_url}" target="_blank" title="Ảnh đồng hồ RO">📷2</a> `;
+    if(r.photo_incident_url) photos += `<a href="${r.photo_incident_url}" target="_blank" title="Ảnh sự cố">🚨📷</a>`;
+    const incidentMark = r.has_incident ? ' 🚨' : '';
+    return `<tr><td>${r.date||''}</td><td>${r.shift||''}</td><td>${r.fullname||r.username||''}</td><td>${r.influent_m3||''}</td><td>${r.ro_permeate_m3||''}</td><td>${r.ph_ro||''}</td><td>${photos||'—'}</td><td>${r.notes||''}${incidentMark}</td></tr>`;
   }).join('') || '<tr><td colspan="8" style="color:var(--gray);">Chưa có báo cáo nào.</td></tr>';
 }
 
