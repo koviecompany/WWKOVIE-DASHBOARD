@@ -310,7 +310,7 @@
       </h3>
       <div class="chart-wrap"><canvas id="volMonth"></canvas></div>
     </div>
-    <div class="panel eq" id="panel-p9">
+    <div class="panel eq wide" id="panel-p9">
       <h3>TỔNG HÓA CHẤT SỬ DỤNG
         <span style="display:flex;gap:6px;align-items:center;">
           <select id="chemViewMode" onchange="onChemViewModeChange()" style="background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:10px;padding:3px 6px;">
@@ -334,12 +334,31 @@
       </h3>
       <div class="chart-wrap"><canvas id="effMonth"></canvas></div>
     </div>
+    <div class="panel full" id="panel-pTrainCharts">
+      <h3>CHỈ SỐ THEO TỪNG BỂ TRONG DÂY CHUYỀN
+        <select id="trainViewMode" onchange="renderTrainCharts()" style="background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:10px;padding:3px 6px;">
+          <option value="ngay">Theo ngày</option>
+          <option value="tuan">Theo tuần</option>
+          <option value="thang" selected>Theo tháng</option>
+        </select>
+      </h3>
+      <p style="font-size:10px;color:var(--gray2);margin:0 0 10px;">Trục hoành: các bể/điểm đo dọc dây chuyền · Trục tung: giá trị trung bình chỉ số trong khoảng thời gian đã chọn.</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px;">
+        <div><h5 style="font-size:10.5px;color:var(--gray);margin:0 0 6px;">pH</h5><div class="chart-wrap" style="min-height:180px;"><canvas id="trainChart_ph"></canvas></div></div>
+        <div><h5 style="font-size:10.5px;color:var(--gray);margin:0 0 6px;">TDS (ppm)</h5><div class="chart-wrap" style="min-height:180px;"><canvas id="trainChart_tds"></canvas></div></div>
+        <div><h5 style="font-size:10.5px;color:var(--gray);margin:0 0 6px;">ORP (mV)</h5><div class="chart-wrap" style="min-height:180px;"><canvas id="trainChart_orp"></canvas></div></div>
+        <div><h5 style="font-size:10.5px;color:var(--gray);margin:0 0 6px;">Độ màu (Pt-Co)</h5><div class="chart-wrap" style="min-height:180px;"><canvas id="trainChart_mau"></canvas></div></div>
+        <div><h5 style="font-size:10.5px;color:var(--gray);margin:0 0 6px;">Độ đục (NTU)</h5><div class="chart-wrap" style="min-height:180px;"><canvas id="trainChart_duc"></canvas></div></div>
+        <div><h5 style="font-size:10.5px;color:var(--gray);margin:0 0 6px;">COD (mg/L)</h5><div class="chart-wrap" style="min-height:180px;"><canvas id="trainChart_cod"></canvas></div></div>
+        <div><h5 style="font-size:10.5px;color:var(--gray);margin:0 0 6px;">SDI (nước cấp RO)</h5><div class="chart-wrap" style="min-height:180px;"><canvas id="trainChart_sdi"></canvas></div></div>
+      </div>
+    </div>
     <div class="panel" id="panel-p11">
       <h3>RECOVERY THỰC TẾ vs MỤC TIÊU (YTD)</h3>
       <div class="chart-wrap"><canvas id="gauge"></canvas></div>
       <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--gray);margin-top:4px;" id="complianceLine"></div>
     </div>
-    <div class="panel" id="panel-p12"><h3>ÁP SUẤT RO — ĐẦU VÀO & REJECT (Bar)</h3><div class="chart-wrap"><canvas id="pressureTrend"></canvas></div></div>
+    <div class="panel wide" id="panel-p12"><h3>ÁP SUẤT RO — ĐẦU VÀO & REJECT (Bar)</h3><div class="chart-wrap"><canvas id="pressureTrend"></canvas></div></div>
 
     <div class="panel" id="panel-pChemUsage"><h3>SỬ DỤNG HÓA CHẤT HÔM NAY (theo loại)</h3><div class="chart-wrap"><canvas id="chemUsageChart"></canvas></div></div>
     <div class="panel" id="panel-pChemInventory"><h3>TỒN KHO HÓA CHẤT HIỆN TẠI</h3><div id="chemInventoryList"></div></div>
@@ -671,10 +690,10 @@ function kpiIconHtml(k){ return KPI_ICONS[k.id] || `<span style="font-size:17px;
 
 /* ================= VIEW MODE (Ca/Ngày/Tuần/Tháng/Năm/Khoảng thời gian) ================= */
 /* ================= NAVIGATION ================= */
-const ALL_PANEL_IDS = ['p1','p2','p4','p5','p6','p7','p8','p9','p10','p11','p12','pChemUsage','pChemInventory','pChemStockIn','pChemDose','pChemReceive','pAlerts','pSettings','pDataEntry','pCIP'];
+const ALL_PANEL_IDS = ['p1','p2','p4','p5','p6','p7','p8','p9','p10','p11','p12','pTrainCharts','pChemUsage','pChemInventory','pChemStockIn','pChemDose','pChemReceive','pAlerts','pSettings','pDataEntry','pCIP'];
 const PAGE_ICON = {overview:'🏠',nhap_lieu:'📝',nhap_hoa_chat:'🧴',baocao_vanhanh:'📊',luu_luong:'💧',hoa_chat:'🧴',chat_luong:'🧪',xu_huong:'📈',ke_hoach:'🎯',chenh_lech:'🔀',baocao:'📦',canh_bao:'🔔',cip:'🧽',cai_dat:'⚡'};
 const PAGES = {
-  overview:       ['p1','p4','p6','p12','p9','p5','p10'],
+  overview:       ['p5','p1','p4','p9','p12','p6','p10','pTrainCharts'],
   nhap_lieu:      ['pDataEntry'],
   baocao_vanhanh: ['p1','p9','p5','p8','p11'],
   luu_luong:      ['p1','p8','p6','p2'],
@@ -824,6 +843,10 @@ function refreshData(){
 const PH_POINTS = ['Bể điều hòa','pH trước PAM','Bể lắng 1','Bể lắng 2','Bể lắng tròn','Bể TMF','Lọc UF-A','Lọc UF-B','Lọc RO-A','Lọc RO-B'];
 const TDS_POINTS = ['Bể điều hòa','Bể lắng 1','Bể lắng 2','Bể lắng tròn','Bể TMF','Lọc UF-A','Lọc UF-B','Lọc RO-A','Lọc RO-B'];
 const ORP_POINTS = TDS_POINTS;
+const COLOR_POINTS = TDS_POINTS;
+const TURBIDITY_POINTS = TDS_POINTS;
+const COD_POINTS = ['Bể điều hòa','Bể lắng 1','Bể lắng 2','Bể lắng tròn','Bể TMF','Lọc RO-A','Lọc RO-B'];
+const SDI_POINTS = ['Lọc UF-A','Lọc UF-B','Lọc RO-A','Lọc RO-B']; // SDI chỉ đo tại nước cấp vào RO theo tiêu chuẩn ngành
 
 function slugify(s){
   return s.toLowerCase().replace(/đ/g,'d')
@@ -872,7 +895,11 @@ function buildDetailForms(){
     phTdsOrp.innerHTML =
       `<div class="ef-detail-group"><h5>pH</h5>${buildPointTable('ph', PH_POINTS)}</div>` +
       `<div class="ef-detail-group"><h5>TDS (ppm)</h5>${buildPointTable('tds', TDS_POINTS)}</div>` +
-      `<div class="ef-detail-group"><h5>ORP (mV)</h5>${buildPointTable('orp', ORP_POINTS)}</div>`;
+      `<div class="ef-detail-group"><h5>ORP (mV)</h5>${buildPointTable('orp', ORP_POINTS)}</div>` +
+      `<div class="ef-detail-group"><h5>Độ màu (Pt-Co)</h5>${buildPointTable('mau', COLOR_POINTS)}</div>` +
+      `<div class="ef-detail-group"><h5>Độ đục (NTU)</h5>${buildPointTable('duc', TURBIDITY_POINTS)}</div>` +
+      `<div class="ef-detail-group"><h5>COD (mg/L)</h5>${buildPointTable('cod', COD_POINTS)}</div>` +
+      `<div class="ef-detail-group"><h5>SDI (nước cấp vào RO)</h5>${buildPointTable('sdi', SDI_POINTS)}</div>`;
   }
   const roAB = document.getElementById('detailRoAB');
   if(roAB){ roAB.innerHTML = buildRoGroup('A') + buildRoGroup('B'); }
@@ -1962,6 +1989,57 @@ function renderChemByMode(){
 }
 
 /* ================= CHỈ SỐ CHẤT LƯỢNG NƯỚC RO: pH, TDS, Màu, Đục, ORP theo tháng ================= */
+/* ================= CHỈ SỐ THEO TỪNG BỂ TRONG DÂY CHUYỀN (pH/TDS/ORP/Màu/Đục/COD/SDI) ================= */
+function getEntriesForPeriod(mode){
+  const entries = (lastData.dailyEntries||[]).map(e=>({...e, dt:parseDateSmart(e.date)})).filter(e=>e.dt);
+  if(entries.length===0) return [];
+  if(mode==='ngay'){
+    let latest=null; entries.forEach(e=>{ if(!latest||e.dt>latest) latest=e.dt; });
+    return entries.filter(e=>latest && e.dt.getTime()===latest.getTime());
+  } else if(mode==='tuan'){
+    const monday = getMondayOfWeek(new Date());
+    const sunday = new Date(monday); sunday.setDate(monday.getDate()+6);
+    return entries.filter(e=>e.dt>=monday && e.dt<=sunday);
+  } else { // thang
+    const now = new Date();
+    return entries.filter(e=>e.dt.getFullYear()===now.getFullYear() && e.dt.getMonth()===now.getMonth());
+  }
+}
+
+function avgPointValue(entries, prefix, point){
+  const slug = prefix+'_'+slugify(point);
+  const vals = [];
+  entries.forEach(e=>{ const v = avgDetailField(e, slug); if(v!==null) vals.push(v); });
+  return vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : 0;
+}
+
+function renderTrainChart(canvasId, prefix, points, color){
+  const mode = document.getElementById('trainViewMode')?.value || 'thang';
+  const entries = getEntriesForPeriod(mode);
+  const data = points.map(p => +(avgPointValue(entries, prefix, p)).toFixed(2));
+  const key = 'train_'+canvasId;
+  if(charts[key]) charts[key].destroy();
+  const canvas = document.getElementById(canvasId);
+  if(!canvas) return;
+  charts[key] = new Chart(canvas, {
+    type:'bar',
+    data:{labels:points, datasets:[{data, backgroundColor:color, borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false, plugins:{legend:{display:false}},
+      scales:{y:{grid:{color:'#26262a'}}, x:{grid:{display:false},ticks:{font:{size:8},maxRotation:60,minRotation:40}}}}
+  });
+}
+
+function renderTrainCharts(){
+  if(!lastData) return;
+  renderTrainChart('trainChart_ph','ph',PH_POINTS,'#f5811f');
+  renderTrainChart('trainChart_tds','tds',TDS_POINTS,'#4fc3f7');
+  renderTrainChart('trainChart_orp','orp',ORP_POINTS,'#b388ff');
+  renderTrainChart('trainChart_mau','mau',COLOR_POINTS,'#9aa0a6');
+  renderTrainChart('trainChart_duc','duc',TURBIDITY_POINTS,'#3ecf8e');
+  renderTrainChart('trainChart_cod','cod',COD_POINTS,'#e5484d');
+  renderTrainChart('trainChart_sdi','sdi',SDI_POINTS,'#ffd54f');
+}
+
 function renderWaterQualityTrend(){
   if(!lastData) return;
   const mode = document.getElementById('qualityViewMode')?.value || 'thang';
@@ -2117,6 +2195,7 @@ function renderDashboard(d){
   renderEntriesTable(d);
   updateShiftBadge(d);
   renderPressureTrend();
+  renderTrainCharts();
   renderCIP(d);
 
   const activeNav = document.querySelector('.nav a.active');
