@@ -83,6 +83,8 @@
   #pageTitle{margin:0 0 12px;font-size:13px;color:var(--orange);font-weight:800;letter-spacing:.4px;display:flex;align-items:center;gap:8px;}
 
   .page-grid{display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:12px;margin-bottom:12px;}
+  .page-grid.grid-2col{grid-template-columns:repeat(2, 1fr);}
+  @media (max-width:800px){ .page-grid.grid-2col{grid-template-columns:1fr;} }
   .panel{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px;display:flex;flex-direction:column;min-height:260px;}
   .panel.wide{grid-column:span 2;}
   .panel.full{grid-column:1/-1;}
@@ -324,7 +326,7 @@
 
     <div class="panel" id="panel-pChemUsage"><h3>SỬ DỤNG HÓA CHẤT HÔM NAY (theo loại)</h3><div class="chart-wrap"><canvas id="chemUsageChart"></canvas></div></div>
     <div class="panel" id="panel-pChemInventory"><h3>TỒN KHO HÓA CHẤT HIỆN TẠI</h3><div id="chemInventoryList"></div></div>
-    <div class="panel wide" id="panel-pChemStockIn">
+    <div class="panel" id="panel-pChemStockIn">
       <h3>ĐẶT HÀNG HÓA CHẤT</h3>
       <div class="ef-row">
         <label>Ngày đặt hàng</label><input type="date" id="si_date">
@@ -348,7 +350,7 @@
       <div style="overflow-x:auto;"><table><thead><tr><th>Ngày</th><th>Hóa chất</th><th>Số lượng</th><th>Nhà cung cấp</th><th>Ghi chú</th></tr></thead><tbody id="stockInBody"></tbody></table></div>
     </div>
 
-    <div class="panel wide" id="panel-pChemDose">
+    <div class="panel" id="panel-pChemDose">
       <h3>📊 ĐỊNH MỨC HÓA CHẤT TRUNG BÌNH / M³ NƯỚC THẢI
         <select id="doseViewMode" onchange="renderDoseChart()" style="background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:10px;padding:3px 6px;">
           <option value="ca">Theo ca</option>
@@ -664,6 +666,7 @@ function showPage(key, label){
     const el = document.getElementById('panel-'+id);
     if(el) content.appendChild(el);
   });
+  content.classList.toggle('grid-2col', key==='baocao');
   document.querySelectorAll('.nav a').forEach(a=>a.classList.remove('active'));
   const navEl = document.querySelector(`.nav a[data-page="${key}"]`);
   if(navEl) navEl.classList.add('active');
