@@ -196,7 +196,7 @@
       <a data-page="xu_huong" onclick="showPage('xu_huong','Phân tích Xu hướng')"><span class="ic">📈</span> Phân tích Xu hướng</a>
       <a data-page="ke_hoach" onclick="showPage('ke_hoach','Kế hoạch vs Thực tế')"><span class="ic">🎯</span> Kế hoạch vs Thực tế</a>
       <a data-page="chenh_lech" onclick="showPage('chenh_lech','Phân tích Chênh lệch')"><span class="ic">🔀</span> Phân tích Chênh lệch</a>
-      <a data-page="baocao" onclick="showPage('baocao','Nhập kho hóa chất')"><span class="ic">📦</span> Nhập kho hóa chất</a>
+      <a data-page="baocao" onclick="showPage('baocao','Đặt hàng hóa chất')"><span class="ic">📦</span> Đặt hàng hóa chất</a>
       <a data-page="canh_bao" onclick="showPage('canh_bao','Cảnh báo')"><span class="ic">🔔</span> Cảnh báo</a>
       <a data-page="cip" onclick="showPage('cip','CIP RO & UF')"><span class="ic">🧽</span> CIP RO & UF</a>
       <a data-page="cai_dat" onclick="showPage('cai_dat','Cài đặt')"><span class="ic">⚡</span> Cài đặt</a>
@@ -325,11 +325,11 @@
     <div class="panel" id="panel-pChemUsage"><h3>SỬ DỤNG HÓA CHẤT HÔM NAY (theo loại)</h3><div class="chart-wrap"><canvas id="chemUsageChart"></canvas></div></div>
     <div class="panel" id="panel-pChemInventory"><h3>TỒN KHO HÓA CHẤT HIỆN TẠI</h3><div id="chemInventoryList"></div></div>
     <div class="panel wide" id="panel-pChemStockIn">
-      <h3>NHẬP KHO HÓA CHẤT</h3>
+      <h3>ĐẶT HÀNG HÓA CHẤT</h3>
       <div class="ef-row">
         <label>Ngày đặt hàng</label><input type="date" id="si_date">
         <label>Hóa chất</label>
-        <select id="si_chemical">
+        <select id="si_chemical" onchange="onStockInChemicalChange()">
           <option>PAC 10%</option><option>Polymer 0.05%</option><option>NaOH 10%</option>
           <option>Javen 10%</option><option>HCl 10%</option><option>Citric Acid</option><option>Genesys LS</option>
         </select>
@@ -341,10 +341,10 @@
         <label>Nhà cung cấp</label><input type="text" id="si_supplier" style="min-width:160px;">
       </div>
       <div class="ef-row"><label>Ghi chú</label><input type="text" id="si_note" style="min-width:220px;"></div>
-      <div class="ef-actions"><button class="btn-save" onclick="saveStockIn()">💾 Lưu nhập kho</button></div>
+      <div class="ef-actions"><button class="btn-save" onclick="saveStockIn()">💾 Lưu đặt hàng</button></div>
       <div id="si_msg" class="ef-msg"></div>
 
-      <h4 style="margin-top:16px;">Lịch sử nhập kho hóa chất</h4>
+      <h4 style="margin-top:16px;">Lịch sử đặt hàng hóa chất</h4>
       <div style="overflow-x:auto;"><table><thead><tr><th>Ngày</th><th>Hóa chất</th><th>Số lượng</th><th>Nhà cung cấp</th><th>Ghi chú</th></tr></thead><tbody id="stockInBody"></tbody></table></div>
     </div>
 
@@ -997,7 +997,7 @@ function computeCipSmartAlerts(d){
   return alerts;
 }
 
-/* ================= NHẬP KHO HÓA CHẤT ================= */
+/* ================= ĐẶT HÀNG HÓA CHẤT ================= */
 /* ================= ĐỊNH MỨC HÓA CHẤT TRUNG BÌNH / M³ NƯỚC THẢI ================= */
 function renderDoseChart(){
   if(!lastData) return;
@@ -1044,6 +1044,15 @@ function renderDoseChart(){
         x:{grid:{display:false},ticks:{font:{size:8.5}}}
       }}
   });
+}
+
+/* Đơn vị đặt hàng mặc định cho từng hóa chất — NaOH mua dạng xút vảy (kg),
+   các hóa chất còn lại mặc định lít. Khi pha để chạy nước thải hằng ngày vẫn tính lít như cũ, không ảnh hưởng ở đây. */
+const ORDER_DEFAULT_UNIT = { 'NaOH 10%': 'kg' };
+function onStockInChemicalChange(){
+  const chem = document.getElementById('si_chemical').value;
+  const unitEl = document.getElementById('si_unit');
+  unitEl.value = ORDER_DEFAULT_UNIT[chem] || 'lít';
 }
 
 async function saveStockIn(){
@@ -2001,7 +2010,7 @@ const DEMO_DATA = {
   chemicalInventory:[
     {chemical:'PAC 10%',current_stock:850,unit:'lít',min_threshold:300},
     {chemical:'Polymer 0.05%',current_stock:420,unit:'lít',min_threshold:200},
-    {chemical:'NaOH 10%',current_stock:180,unit:'lít',min_threshold:200},
+    {chemical:'NaOH 10%',current_stock:180,unit:'kg',min_threshold:200},
     {chemical:'Javen 10%',current_stock:260,unit:'lít',min_threshold:150},
     {chemical:'HCl 10%',current_stock:95,unit:'lít',min_threshold:100},
     {chemical:'Citric Acid',current_stock:140,unit:'lít',min_threshold:80},
