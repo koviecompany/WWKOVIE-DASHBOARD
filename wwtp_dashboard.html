@@ -374,11 +374,7 @@
         <label>Đơn vị</label>
         <select id="si_unit"><option value="lít">lít</option><option value="kg">kg</option></select>
         <label>Nhà cung cấp</label>
-        <select id="si_supplier" onchange="onSupplierChange()" style="min-width:180px;">
-          <option value="Cty Hóa chất Tín Thành">Cty Hóa chất Tín Thành</option>
-          <option value="Cty TNHH Hóa Chất Miền Nam">Cty TNHH Hóa Chất Miền Nam</option>
-          <option value="__khac__">Khác (nhập tên)</option>
-        </select>
+        <select id="si_supplier" onchange="onSupplierChange()" style="min-width:180px;"></select>
         <input type="text" id="si_supplier_other" placeholder="Nhập tên nhà cung cấp..." style="display:none;min-width:180px;">
       </div>
       <div class="ef-row"><label>Ghi chú</label><input type="text" id="si_note" style="min-width:220px;"></div>
@@ -1103,6 +1099,16 @@ function onStockInChemicalChange(){
   const chem = document.getElementById('si_chemical').value;
   const unitEl = document.getElementById('si_unit');
   unitEl.value = ORDER_DEFAULT_UNIT[chem] || 'lít';
+}
+
+function renderSupplierOptions(d){
+  const sel = document.getElementById('si_supplier');
+  if(!sel) return;
+  const prevVal = sel.value;
+  const suppliers = (d.suppliers||[]).map(s=>s.name).filter(Boolean);
+  sel.innerHTML = suppliers.map(name=>`<option value="${name}">${name}</option>`).join('')
+    + '<option value="__khac__">Khác (nhập tên)</option>';
+  if(suppliers.indexOf(prevVal)>-1 || prevVal==='__khac__') sel.value = prevVal;
 }
 
 function onSupplierChange(){
@@ -2016,6 +2022,7 @@ function renderDashboard(d){
     `<tr><td>${r.date||''}</td><td>${r.chemical||''}</td><td>${r.quantity||''} ${r.unit||''}</td><td>${r.supplier||''}</td><td>${r.note||''}</td></tr>`
   ).join('') || '<tr><td colspan="5" style="color:var(--gray);">Chưa có dữ liệu.</td></tr>';
   renderDoseChart();
+  renderSupplierOptions(d);
 
   renderAlerts(d);
   renderSettings();
@@ -2133,6 +2140,10 @@ const DEMO_DATA = {
     {date:'2026-06-20', system:'UF B', note:'CIP định kỳ bằng NaOH'},
     {date:'2026-07-10', system:'RO A', note:'CIP bằng Citric Acid + NaOH'},
     {date:'2026-06-15', system:'RO B', note:'CIP bằng Citric Acid'}
+  ],
+  suppliers:[
+    {name:'Cty Hóa chất An Phát'},
+    {name:'Cty TNHH Hóa Chất Miền Nam'}
   ]
 };
 </script>
