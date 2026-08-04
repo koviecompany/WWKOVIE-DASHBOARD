@@ -6,6 +6,7 @@
 <title>YOU YOUNG VINA - WWTP Dashboard</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
 <style>
   :root{
     --bg:#0e0e10; --panel:#18181b; --panel2:#1f1f22; --border:#2b2b2f;
@@ -39,6 +40,9 @@
   .nav a.active{background:var(--orange);color:#151515;}
   .nav a.active:hover{background:var(--orange);}
   .nav a .ic{width:16px;text-align:center;}
+  .alert-badge{width:9px;height:9px;border-radius:50%;background:var(--red);margin-left:auto;box-shadow:0 0 6px var(--red);animation:alertBlink 1s ease-in-out infinite;}
+  @keyframes alertBlink{0%,100%{opacity:1;box-shadow:0 0 4px var(--red),0 0 8px var(--red);} 50%{opacity:.35;box-shadow:0 0 2px var(--red);}}
+  .nav a[data-page="canh_bao"]{position:relative;}
 
 
   .userbadge-v2{margin-top:14px;background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:14px 10px;text-align:center;}
@@ -86,6 +90,7 @@
   .page-grid{display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));grid-auto-flow:dense;gap:12px;margin-bottom:12px;}
   .page-grid.grid-2col{grid-template-columns:repeat(2, 1fr);}
   @media (max-width:800px){ .page-grid.grid-2col{grid-template-columns:1fr;} }
+  .page-grid.grid-full{grid-template-columns:1fr;}
   .panel{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px;display:flex;flex-direction:column;min-height:260px;}
   .panel.wide{grid-column:span 2;}
   .panel.full{grid-column:1/-1;}
@@ -217,8 +222,9 @@
       <a data-page="xu_huong" onclick="showPage('xu_huong','Phân tích Xu hướng')"><span class="ic">📈</span> Phân tích Xu hướng</a>
       <a data-page="ke_hoach" onclick="showPage('ke_hoach','Kế hoạch vs Thực tế')"><span class="ic">🎯</span> Kế hoạch vs Thực tế</a>
       <a data-page="chenh_lech" onclick="showPage('chenh_lech','Phân tích Chênh lệch')"><span class="ic">🔀</span> Phân tích Chênh lệch</a>
+      <a data-page="nhap_hoa_chat" onclick="showPage('nhap_hoa_chat','Nhập hóa chất')"><span class="ic">🧴</span> Nhập hóa chất</a>
       <a data-page="baocao" onclick="showPage('baocao','Đặt hàng hóa chất')"><span class="ic">📦</span> Đặt hàng hóa chất</a>
-      <a data-page="canh_bao" onclick="showPage('canh_bao','Cảnh báo')"><span class="ic">🔔</span> Cảnh báo</a>
+      <a data-page="canh_bao" onclick="showPage('canh_bao','Cảnh báo')"><span class="ic">🔔</span> Cảnh báo<span id="alertBadge" class="alert-badge" style="display:none;"></span></a>
       <a data-page="cip" onclick="showPage('cip','CIP RO & UF')"><span class="ic">🧽</span> CIP RO & UF</a>
       <a data-page="cai_dat" onclick="showPage('cai_dat','Cài đặt')"><span class="ic">⚡</span> Cài đặt</a>
     </div>
@@ -337,6 +343,35 @@
 
     <div class="panel" id="panel-pChemUsage"><h3>SỬ DỤNG HÓA CHẤT HÔM NAY (theo loại)</h3><div class="chart-wrap"><canvas id="chemUsageChart"></canvas></div></div>
     <div class="panel" id="panel-pChemInventory"><h3>TỒN KHO HÓA CHẤT HIỆN TẠI</h3><div id="chemInventoryList"></div></div>
+    <div class="panel wide" id="panel-pChemReceive">
+      <h3>NHẬP HÓA CHẤT (Vận hành)</h3>
+      <div class="ef-row">
+        <label>Ngày nhập</label><input type="date" id="cr_date">
+        <label>Hóa chất</label>
+        <select id="cr_chemical">
+          <option>PAC 10%</option><option>Polymer 0.05%</option><option>NaOH 10%</option>
+          <option>Javen 10%</option><option>HCl 10%</option><option>Citric Acid</option><option>Genesys LS</option>
+        </select>
+      </div>
+      <div class="ef-row">
+        <label>Số lượng</label><input type="number" step="0.1" id="cr_quantity" style="width:100px;">
+        <label>Đơn vị</label>
+        <select id="cr_unit"><option value="lít">lít</option><option value="kg">kg</option></select>
+      </div>
+      <div class="ef-row"><label>Ghi chú</label><input type="text" id="cr_note" style="min-width:220px;"></div>
+      <div class="ef-row">
+        <label>📷 Chụp hóa đơn</label>
+        <input type="file" accept="image/*" capture="environment" id="cr_photo_invoice" onchange="previewPhoto('cr_photo_invoice','cr_preview_invoice')">
+      </div>
+      <img id="cr_preview_invoice" style="display:none;max-width:140px;border-radius:8px;margin-top:6px;border:1px solid var(--border);">
+      <div class="ef-actions"><button class="btn-save" onclick="saveChemReceive()">💾 Lưu & Gửi cho bộ phận đặt hàng</button></div>
+      <div id="cr_msg" class="ef-msg"></div>
+      <p style="font-size:10px;color:var(--gray2);margin-top:6px;">Sau khi lưu, thông tin và ảnh hóa đơn sẽ xuất hiện trong danh sách của bộ phận đặt hàng (Thoa) để đối chiếu — không phải gửi email/tin nhắn tự động.</p>
+
+      <h4 style="margin-top:16px;">Lịch sử nhập hóa chất gần đây</h4>
+      <div style="overflow-x:auto;"><table><thead><tr><th>Ngày</th><th>Hóa chất</th><th>Số lượng</th><th>Hóa đơn</th><th>Ghi chú</th></tr></thead><tbody id="chemReceiveBody"></tbody></table></div>
+    </div>
+
     <div class="panel" id="panel-pChemStockIn">
       <h3>ĐẶT HÀNG HÓA CHẤT</h3>
       <div class="ef-row">
@@ -586,6 +621,11 @@
 <script>
 const API_URL = "https://script.google.com/macros/s/AKfycbzaUgl85bPHflwrUzRqikTonzI2H0UlDXUlH6Z1enOnTpMPkqcPGAQ9Fx4P6I-aJcI5/exec";
 
+if(typeof ChartDataLabels !== 'undefined'){
+  Chart.register(ChartDataLabels);
+  Chart.defaults.set('plugins.datalabels', { display: false }); // tắt mặc định, chỉ bật riêng cho biểu đồ cần thiết
+}
+
 let currentUser = null;
 let charts = {};
 let lastData = null;
@@ -630,13 +670,14 @@ function kpiIconHtml(k){ return KPI_ICONS[k.id] || `<span style="font-size:17px;
 
 /* ================= VIEW MODE (Ca/Ngày/Tuần/Tháng/Năm/Khoảng thời gian) ================= */
 /* ================= NAVIGATION ================= */
-const ALL_PANEL_IDS = ['p1','p2','p4','p5','p6','p7','p8','p9','p10','p11','p12','pChemUsage','pChemInventory','pChemStockIn','pChemDose','pAlerts','pSettings','pDataEntry','pCIP'];
-const PAGE_ICON = {overview:'🏠',nhap_lieu:'📝',baocao_vanhanh:'📊',luu_luong:'💧',hoa_chat:'🧴',chat_luong:'🧪',xu_huong:'📈',ke_hoach:'🎯',chenh_lech:'🔀',baocao:'📦',canh_bao:'🔔',cip:'🧽',cai_dat:'⚡'};
+const ALL_PANEL_IDS = ['p1','p2','p4','p5','p6','p7','p8','p9','p10','p11','p12','pChemUsage','pChemInventory','pChemStockIn','pChemDose','pChemReceive','pAlerts','pSettings','pDataEntry','pCIP'];
+const PAGE_ICON = {overview:'🏠',nhap_lieu:'📝',nhap_hoa_chat:'🧴',baocao_vanhanh:'📊',luu_luong:'💧',hoa_chat:'🧴',chat_luong:'🧪',xu_huong:'📈',ke_hoach:'🎯',chenh_lech:'🔀',baocao:'📦',canh_bao:'🔔',cip:'🧽',cai_dat:'⚡'};
 const PAGES = {
   overview:       ['p1','p4','p6','p12','p9','p5','p10'],
   nhap_lieu:      ['pDataEntry'],
   baocao_vanhanh: ['p1','p9','p5','p8','p11'],
   luu_luong:      ['p1','p8','p6','p2'],
+  nhap_hoa_chat:  ['pChemInventory','pChemReceive'],
   hoa_chat:       ['p9','pChemUsage','pChemInventory','pChemStockIn','pChemDose'],
   chat_luong:     ['p4','p10','p11'],
   xu_huong:       ['p1','p4','p9','p10'],
@@ -663,6 +704,7 @@ function showPage(key, label){
     if(el) content.appendChild(el);
   });
   content.classList.toggle('grid-2col', key==='baocao');
+  content.classList.toggle('grid-full', key==='nhap_hoa_chat');
   document.querySelectorAll('.nav a').forEach(a=>a.classList.remove('active'));
   const navEl = document.querySelector(`.nav a[data-page="${key}"]`);
   if(navEl) navEl.classList.add('active');
@@ -743,6 +785,7 @@ function enterApp(){
   document.getElementById('ef_fullname').value = currentUser.fullname || currentUser.username || '';
   document.getElementById('cip_date').value = new Date().toISOString().slice(0,10);
   document.getElementById('si_date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('cr_date').value = new Date().toISOString().slice(0,10);
   buildDetailForms();
   buildMechCleanBlocks();
   applyPermissions();
@@ -1078,6 +1121,60 @@ function onSupplierChange(){
 function getSupplierValue(){
   const sel = document.getElementById('si_supplier').value;
   return sel==='__khac__' ? document.getElementById('si_supplier_other').value : sel;
+}
+
+/* ================= NHẬP HÓA CHẤT (Vận hành — không có nhà cung cấp, có ảnh hóa đơn) ================= */
+async function saveChemReceive(){
+  const msg = document.getElementById('cr_msg');
+  const invoiceFile = document.getElementById('cr_photo_invoice').files[0];
+  let invoiceB64 = '';
+  const entry = {
+    date: document.getElementById('cr_date').value,
+    chemical: document.getElementById('cr_chemical').value,
+    quantity: document.getElementById('cr_quantity').value,
+    unit: document.getElementById('cr_unit').value,
+    note: document.getElementById('cr_note').value,
+    username: currentUser ? currentUser.username : '',
+    supplier: '' // vận hành không cần chọn nhà cung cấp
+  };
+  if(!entry.date || !entry.quantity){ msg.style.color='var(--red)'; msg.textContent='Vui lòng nhập ngày và số lượng.'; return; }
+
+  msg.style.color='var(--gray)'; msg.textContent='Đang xử lý...';
+  try{ if(invoiceFile) invoiceB64 = await resizeImageFile(invoiceFile, 1200); }catch(e){}
+  entry.invoice_base64 = invoiceB64;
+
+  if(isApiConfigured() && currentUser && currentUser.username!=='demo'){
+    try{
+      const res = await fetch(API_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify({action:'saveStockIn', entry})});
+      const data = await res.json();
+      if(data.success){
+        msg.style.color='var(--green)'; msg.textContent = 'Đã lưu và gửi cho bộ phận đặt hàng.';
+        document.getElementById('cr_quantity').value=''; document.getElementById('cr_note').value='';
+        document.getElementById('cr_photo_invoice').value=''; document.getElementById('cr_preview_invoice').style.display='none';
+        await loadRealData();
+      } else { msg.style.color='var(--red)'; msg.textContent = data.message || 'Lưu thất bại'; }
+    }catch(e){ msg.style.color='var(--red)'; msg.textContent='Không kết nối được backend.'; }
+  } else {
+    if(!lastData) lastData = JSON.parse(JSON.stringify(DEMO_DATA));
+    lastData.chemicalStockIn = lastData.chemicalStockIn || [];
+    lastData.chemicalStockIn.push(entry);
+    const inv = (lastData.chemicalInventory||[]).find(c=>c.chemical===entry.chemical);
+    if(inv) inv.current_stock = Number(inv.current_stock||0) + Number(entry.quantity||0);
+    msg.style.color='var(--orange)'; msg.textContent='Chế độ demo: đã thêm tạm (không lưu thật vào Google Sheets).';
+    document.getElementById('cr_quantity').value=''; document.getElementById('cr_note').value='';
+    document.getElementById('cr_photo_invoice').value=''; document.getElementById('cr_preview_invoice').style.display='none';
+    renderDashboard(lastData);
+  }
+}
+
+function renderChemReceiveTable(d){
+  const el = document.getElementById('chemReceiveBody');
+  if(!el) return;
+  const rows = (d.chemicalStockIn||[]).slice(-10).reverse();
+  el.innerHTML = rows.map(r=>{
+    const invoiceLink = r.invoice_url ? `<a href="${r.invoice_url}" target="_blank">🧾 Xem</a>` : '—';
+    return `<tr><td>${r.date||''}</td><td>${r.chemical||''}</td><td>${r.quantity||''} ${r.unit||''}</td><td>${invoiceLink}</td><td>${r.note||''}</td></tr>`;
+  }).join('') || '<tr><td colspan="5" style="color:var(--gray);">Chưa có dữ liệu.</td></tr>';
 }
 
 async function saveStockIn(){
@@ -1467,7 +1564,11 @@ function buildAlerts(d){
 }
 
 function renderAlerts(d){
-  document.getElementById('alertsList').innerHTML = buildAlerts(d).map(a=>`<div class="alert-item ${a.level}">${a.text}</div>`).join('');
+  const alerts = buildAlerts(d);
+  document.getElementById('alertsList').innerHTML = alerts.map(a=>`<div class="alert-item ${a.level}">${a.text}</div>`).join('');
+  const hasWarning = alerts.some(a=>a.level!=='ok');
+  const badge = document.getElementById('alertBadge');
+  if(badge) badge.style.display = hasWarning ? 'inline-block' : 'none';
 }
 
 async function changePasswordUI(){
@@ -1604,14 +1705,23 @@ function renderFlowChart(){
   const b = getFlowBuckets(mode);
   const s = computeUFROSeries(b.influent);
   if(charts.flowTrend) charts.flowTrend.destroy();
+  const dlOptions = {
+    display: true,
+    anchor: 'end',
+    align: 'top',
+    color: '#f5f5f5',
+    font: { size: 9, weight: '600' },
+    formatter: v => v ? v.toLocaleString('vi-VN') : ''
+  };
   charts.flowTrend = new Chart(document.getElementById('flowTrend'), {
     type:'bar',
     data:{labels:b.labels, datasets:[
-      {label:'Nước thải đầu vào', data:b.influent, backgroundColor:'#f5811f', borderRadius:4},
-      {label:'Nước sạch UF', data:s.ufPermeate, backgroundColor:'#4fc3f7', borderRadius:4},
-      {label:'Nước sạch RO', data:b.roPermeate, backgroundColor:'#f5f5f5', borderRadius:4}
+      {label:'Nước thải đầu vào', data:b.influent, backgroundColor:'#f5811f', borderRadius:4, datalabels:dlOptions},
+      {label:'Nước sạch UF', data:s.ufPermeate, backgroundColor:'#4fc3f7', borderRadius:4, datalabels:dlOptions},
+      {label:'Nước sạch RO', data:b.roPermeate, backgroundColor:'#f5f5f5', borderRadius:4, datalabels:dlOptions}
     ]},
     options:{responsive:true,maintainAspectRatio:false,
+      layout:{padding:{top:16}},
       plugins:{legend:{position:'bottom',labels:{boxWidth:8,boxHeight:8,padding:8,font:{size:9.5}}}},
       scales:{y:{grid:{color:'#26262a'},ticks:{callback:v=>v.toLocaleString('vi-VN')}}, x:{grid:{display:false},ticks:{font:{size:8.5}}}}}
   });
@@ -1998,6 +2108,7 @@ function renderDashboard(d){
   ).join('') || '<tr><td colspan="5" style="color:var(--gray);">Chưa có dữ liệu.</td></tr>';
   renderDoseChart();
   renderSupplierOptions(d);
+  renderChemReceiveTable(d);
 
   renderAlerts(d);
   renderSettings();
