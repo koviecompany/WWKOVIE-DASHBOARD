@@ -170,10 +170,13 @@
     <p class="sub">Đăng nhập để xem Dashboard Vận hành Xử lý Nước thải</p>
     <input type="text" id="username" placeholder="Tài khoản">
     <input type="password" id="password" placeholder="Mật khẩu">
+    <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--gray);margin:2px 0 8px;text-align:left;">
+      <input type="checkbox" id="rememberMe" style="width:auto;margin:0;"> Lưu tài khoản đăng nhập trên thiết bị này
+    </label>
     <button id="loginBtn" onclick="doLogin()">Đăng nhập</button>
     <div class="login-msg" id="loginMsg"></div>
     <div class="login-demo" onclick="loadDemo()">Xem thử với dữ liệu demo (bỏ qua đăng nhập)</div>
-    <div class="api-cfg">🔧 Backend: <span id="apiStatus">chưa cấu hình API_URL</span><br>Sửa biến <code>API_URL</code> ở đầu script để nối với Google Apps Script của bạn.</div>
+    <div class="login-demo" id="switchAccountLink" onclick="switchAccount()" style="display:none;">🔄 Đăng nhập bằng tài khoản khác</div>
   </div>
 </div>
 
@@ -534,7 +537,28 @@ const API_URL = "https://script.google.com/macros/s/AKfycbzaUgl85bPHflwrUzRqikTo
 let currentUser = null;
 let charts = {};
 let lastData = null;
-document.getElementById('apiStatus').textContent = isApiConfigured() ? 'đã cấu hình' : 'chưa cấu hình API_URL (đang ở chế độ demo)';
+/* Tự động điền lại tài khoản đã lưu (nếu có) khi mở trang */
+(function loadSavedCredentials(){
+  try{
+    const saved = localStorage.getItem('wwtp_saved_login');
+    if(saved){
+      const obj = JSON.parse(saved);
+      document.getElementById('username').value = obj.username || '';
+      document.getElementById('password').value = obj.password || '';
+      document.getElementById('rememberMe').checked = true;
+      document.getElementById('switchAccountLink').style.display = 'block';
+    }
+  }catch(e){}
+})();
+
+function switchAccount(){
+  try{ localStorage.removeItem('wwtp_saved_login'); }catch(e){}
+  document.getElementById('username').value = '';
+  document.getElementById('password').value = '';
+  document.getElementById('rememberMe').checked = false;
+  document.getElementById('switchAccountLink').style.display = 'none';
+  document.getElementById('username').focus();
+}
 
 function isApiConfigured(){ return API_URL && API_URL.indexOf('PASTE_YOUR') === -1; }
 
@@ -592,6 +616,9 @@ const PAGES = {
 };
 
 function showPage(key, label){
+  if(window._allowedPages && window._allowedPages.indexOf(key)===-1){
+    key = 'overview'; label = 'Tổng quan';
+  }
   const store = document.getElementById('panelStore');
   const content = document.getElementById('pageContent');
   ALL_PANEL_IDS.forEach(id=>{
@@ -623,16 +650,45 @@ async function doLogin(){
   try{
     const res = await fetch(API_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify({action:'login', username, password})});
     const data = await res.json();
-    if(data.success){ currentUser = data; enterApp(); await loadRealData(); }
+    if(data.success){
+      currentUser = data;
+      try{
+        if(document.getElementById('rememberMe').checked){
+          localStorage.setItem('wwtp_saved_login', JSON.stringify({username, password}));
+        } else {
+          localStorage.removeItem('wwtp_saved_login');
+        }
+      }catch(e){}
+      enterApp(); await loadRealData();
+    }
     else { msg.textContent = data.message || 'Sai tài khoản hoặc mật khẩu'; }
   }catch(err){ msg.textContent = 'Không kết nối được tới Apps Script. Kiểm tra lại URL / quyền deploy.'; }
   btn.disabled = false; btn.textContent = 'Đăng nhập';
 }
 
 function loadDemo(){
-  currentUser = {fullname:'Người dùng Demo', role:'Xem thử', username:'demo'};
+  currentUser = {fullname:'Người dùng Demo', role:'Xem thử', username:'demo', permissions:'all'};
   enterApp();
   renderDashboard(JSON.parse(JSON.stringify(DEMO_DATA)));
+}
+
+/* Ẩn các mục menu mà tài khoản không được phân quyền xem.
+   currentUser.permissions là chuỗi các trang cách nhau bởi dấu phẩy (vd: "overview,nhap_lieu,cai_dat"),
+   hoặc "all" để xem toàn bộ. Luôn giữ "overview" và "cai_dat" cho mọi tài khoản. */
+function applyPermissions(){
+  const raw = (currentUser && currentUser.permissions) ? String(currentUser.permissions).trim() : 'all';
+  const isAll = !raw || raw.toLowerCase() === 'all';
+  let allowed = isAll ? null : raw.split(',').map(s=>s.trim()).filter(Boolean);
+  if(allowed){
+    if(allowed.indexOf('overview')===-1) allowed.push('overview');
+    if(allowed.indexOf('cai_dat')===-1) allowed.push('cai_dat');
+  }
+  document.querySelectorAll('.nav a[data-page]').forEach(a=>{
+    const key = a.getAttribute('data-page');
+    const show = isAll || allowed.indexOf(key) > -1;
+    a.style.display = show ? '' : 'none';
+  });
+  window._allowedPages = isAll ? null : allowed; // null = xem tất cả
 }
 
 function enterApp(){
@@ -646,6 +702,7 @@ function enterApp(){
   buildDetailForms();
   buildMechCleanBlocks();
   onViewModeChange();
+  applyPermissions();
   showPage('overview','Tổng quan');
 }
 
