@@ -144,6 +144,9 @@
   .ef-grid input{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--white);font-size:12px;}
   .ef-tasks{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;}
   .ef-tasks label{display:flex;align-items:center;gap:8px;font-size:11.5px;color:#d8d8d8;background:var(--panel2);padding:8px 10px;border-radius:8px;border:1px solid var(--border);}
+  .task-block{margin:10px 0;border:1px solid var(--border);border-radius:8px;background:var(--panel2);padding:8px 10px;}
+  .task-toggle{display:flex;align-items:center;gap:8px;font-size:11.5px;color:#d8d8d8;cursor:pointer;}
+  .task-detail{margin-top:8px;padding-top:8px;border-top:1px solid var(--border);}
   .entry-form textarea{width:100%;background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--white);font-size:12px;font-family:inherit;resize:vertical;}
   .ef-actions{display:flex;gap:10px;margin-top:14px;}
   .btn-save{background:var(--orange);color:#151515;font-weight:800;border:none;border-radius:8px;padding:10px 20px;cursor:pointer;font-size:12.5px;}
@@ -443,11 +446,63 @@
         <h4>Công việc phải làm trong ca</h4>
         <div class="ef-tasks" id="ef_tasks">
           <label><input type="checkbox" value="Kiểm tra áp lực bơm RO">Kiểm tra áp lực bơm RO</label>
-          <label><input type="checkbox" value="Vệ sinh lọc UF">Vệ sinh lọc UF</label>
           <label><input type="checkbox" value="Ghi chỉ số đồng hồ nước">Ghi chỉ số đồng hồ nước</label>
           <label><input type="checkbox" value="Kiểm tra tồn kho hóa chất">Kiểm tra tồn kho hóa chất</label>
           <label><input type="checkbox" value="Kiểm tra pH/TDS/ORP đầu ra">Kiểm tra pH/TDS/ORP đầu ra</label>
           <label><input type="checkbox" value="Báo cáo sự cố (nếu có)">Báo cáo sự cố (nếu có)</label>
+        </div>
+
+        <!-- CIP -->
+        <div class="task-block">
+          <label class="task-toggle"><input type="checkbox" value="CIP (vệ sinh hóa chất)" id="task_cip" onchange="toggleTaskDetail('task_cip','taskDetail_cip')">CIP (vệ sinh hóa chất)</label>
+          <div class="task-detail" id="taskDetail_cip" style="display:none;">
+            <div class="ef-detail-group"><h5>Hệ thống CIP (chọn 1 hoặc nhiều)</h5>
+              <div class="ef-tasks">
+                <label><input type="checkbox" class="tcip-sys" value="UF A">UF A</label>
+                <label><input type="checkbox" class="tcip-sys" value="UF B">UF B</label>
+                <label><input type="checkbox" class="tcip-sys" value="RO A">RO A</label>
+                <label><input type="checkbox" class="tcip-sys" value="RO B">RO B</label>
+              </div>
+            </div>
+            <div class="ef-detail-group"><h5>Hóa chất sử dụng</h5>
+              <table class="ef-detail-table">
+                <thead><tr><th style="text-align:left;">Chọn</th><th style="text-align:left;">Hóa chất</th><th>Số lượng</th><th>Đơn vị</th></tr></thead>
+                <tbody>
+                  <tr><td><input type="checkbox" class="tcip-chem-check" data-chem="NaOH/Xút"></td><td class="label-col">NaOH / Xút</td>
+                    <td><input type="number" step="0.1" class="tcip-chem-qty" data-chem="NaOH/Xút"></td>
+                    <td><select class="tcip-chem-unit" data-chem="NaOH/Xút"><option value="lít">lít</option><option value="kg">kg</option></select></td></tr>
+                  <tr><td><input type="checkbox" class="tcip-chem-check" data-chem="NaOCl/Javen"></td><td class="label-col">NaOCl / Javen</td>
+                    <td><input type="number" step="0.1" class="tcip-chem-qty" data-chem="NaOCl/Javen"></td>
+                    <td><select class="tcip-chem-unit" data-chem="NaOCl/Javen"><option value="lít">lít</option><option value="kg">kg</option></select></td></tr>
+                  <tr><td><input type="checkbox" class="tcip-chem-check" data-chem="Axit Citric"></td><td class="label-col">Axit Citric</td>
+                    <td><input type="number" step="0.1" class="tcip-chem-qty" data-chem="Axit Citric"></td>
+                    <td><select class="tcip-chem-unit" data-chem="Axit Citric"><option value="kg">kg</option><option value="lít">lít</option></select></td></tr>
+                  <tr><td><input type="checkbox" class="tcip-chem-check" data-chem="SMB"></td><td class="label-col">SMB</td>
+                    <td><input type="number" step="0.1" class="tcip-chem-qty" data-chem="SMB"></td>
+                    <td><select class="tcip-chem-unit" data-chem="SMB"><option value="kg">kg</option><option value="lít">lít</option></select></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Vệ sinh cơ học: TMF A/B, Lọc túi A/B -->
+        <div class="ef-detail-group"><h5>Vệ sinh cơ học</h5></div>
+        <div id="mechCleanBlocks"></div>
+
+        <!-- Ghi chú khác: thay ron, đầu nối khí nén, khác -->
+        <div class="task-block">
+          <label class="task-toggle"><input type="checkbox" value="Thay thế phụ kiện khác" id="task_other" onchange="toggleTaskDetail('task_other','taskDetail_other')">Thay thế phụ kiện khác (ron, đầu nối khí nén...)</label>
+          <div class="task-detail" id="taskDetail_other" style="display:none;">
+            <table class="ef-detail-table">
+              <thead><tr><th style="text-align:left;">Chọn</th><th style="text-align:left;">Hạng mục</th><th>Số lượng (cái)</th></tr></thead>
+              <tbody>
+                <tr><td><input type="checkbox" class="tother-check" data-item="Thay ron"></td><td class="label-col">Thay ron</td><td><input type="number" class="tother-qty" data-item="Thay ron"></td></tr>
+                <tr><td><input type="checkbox" class="tother-check" data-item="Thay đầu nối khí nén"></td><td class="label-col">Thay đầu nối khí nén</td><td><input type="number" class="tother-qty" data-item="Thay đầu nối khí nén"></td></tr>
+                <tr><td><input type="checkbox" class="tother-check" data-item="Khác"></td><td class="label-col">Khác <input type="text" class="tother-note" placeholder="Ghi rõ hạng mục..." style="width:100%;margin-top:3px;background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:4px 6px;color:var(--white);font-size:10.5px;"></td><td><input type="number" class="tother-qty" data-item="Khác"></td></tr>
+              </tbody>
+            </table>
+          </div>
         </div>
 
         <h4>Ghi chú thêm</h4>
@@ -582,6 +637,7 @@ function enterApp(){
   document.getElementById('ef_fullname').value = currentUser.fullname || currentUser.username || '';
   document.getElementById('cip_date').value = new Date().toISOString().slice(0,10);
   buildDetailForms();
+  buildMechCleanBlocks();
   onViewModeChange();
   showPage('overview','Tổng quan');
 }
@@ -881,8 +937,112 @@ function renderCIP(d){
 }
 
 /* ================= DATA ENTRY FORM ================= */
+const MECH_ITEMS = ['TMF A','TMF B','Lọc túi A','Lọc túi B'];
+
+function buildMechCleanBlocks(){
+  const el = document.getElementById('mechCleanBlocks');
+  if(!el) return;
+  el.innerHTML = MECH_ITEMS.map(item=>{
+    const slug = slugify(item);
+    return `<div class="task-block">
+      <label class="task-toggle"><input type="checkbox" class="tmech-check" value="${item}" id="task_mech_${slug}" onchange="toggleTaskDetail('task_mech_${slug}','taskDetail_mech_${slug}')">${item}</label>
+      <div class="task-detail" id="taskDetail_mech_${slug}" style="display:none;">
+        <div class="ef-row">
+          <label>Hình thức</label>
+          <select class="tmech-type" data-item="${item}" id="tmech_type_${slug}" onchange="toggleMechQty('${slug}')">
+            <option value="Vệ sinh bằng nước">Vệ sinh bằng nước</option>
+            <option value="Thay thế">Thay thế</option>
+          </select>
+          <span id="tmech_qty_wrap_${slug}" style="display:none;">
+            <label>Số lượng thay (cái)</label>
+            <input type="number" class="tmech-qty" data-item="${item}" id="tmech_qty_${slug}" style="width:70px;">
+          </span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleTaskDetail(checkboxId, detailId){
+  const cb = document.getElementById(checkboxId);
+  const detail = document.getElementById(detailId);
+  if(detail) detail.style.display = (cb && cb.checked) ? 'block' : 'none';
+}
+
+function toggleMechQty(slug){
+  const type = document.getElementById('tmech_type_'+slug).value;
+  document.getElementById('tmech_qty_wrap_'+slug).style.display = (type==='Thay thế') ? 'inline-block' : 'none';
+}
+
 function collectTasksDone(){
-  return Array.from(document.querySelectorAll('#ef_tasks input[type=checkbox]:checked')).map(cb=>cb.value).join(', ');
+  const simple = Array.from(document.querySelectorAll('#ef_tasks input[type=checkbox]:checked')).map(cb=>cb.value);
+  const cip = (document.getElementById('task_cip')?.checked) ? ['CIP (vệ sinh hóa chất)'] : [];
+  const mech = Array.from(document.querySelectorAll('.tmech-check:checked')).map(cb=>cb.value);
+  const other = (document.getElementById('task_other')?.checked) ? ['Thay thế phụ kiện khác'] : [];
+  return simple.concat(cip, mech, other).join(', ');
+}
+
+function collectTasksDetailJSON(){
+  const obj = {};
+  if(document.getElementById('task_cip')?.checked){
+    const systems = Array.from(document.querySelectorAll('.tcip-sys:checked')).map(cb=>cb.value);
+    const chemicals = {};
+    document.querySelectorAll('.tcip-chem-check').forEach(cb=>{
+      if(cb.checked){
+        const chem = cb.getAttribute('data-chem');
+        const qtyEl = document.querySelector(`.tcip-chem-qty[data-chem="${chem}"]`);
+        const unitEl = document.querySelector(`.tcip-chem-unit[data-chem="${chem}"]`);
+        chemicals[chem] = { qty: qtyEl?qtyEl.value:'', unit: unitEl?unitEl.value:'' };
+      }
+    });
+    obj.cip = { systems, chemicals };
+  }
+  const mechResult = {};
+  document.querySelectorAll('.tmech-check:checked').forEach(cb=>{
+    const item = cb.value;
+    const slug = slugify(item);
+    const type = document.getElementById('tmech_type_'+slug)?.value || '';
+    const qty = document.getElementById('tmech_qty_'+slug)?.value || '';
+    mechResult[item] = { type, qty: (type==='Thay thế') ? qty : '' };
+  });
+  if(Object.keys(mechResult).length) obj.mech_clean = mechResult;
+  if(document.getElementById('task_other')?.checked){
+    const otherItems = {};
+    document.querySelectorAll('.tother-check').forEach(cb=>{
+      if(cb.checked){
+        const item = cb.getAttribute('data-item');
+        const qtyEl = document.querySelector(`.tother-qty[data-item="${item}"]`);
+        let label = item;
+        if(item==='Khác'){
+          const noteEl = document.querySelector('.tother-note');
+          if(noteEl && noteEl.value) label = 'Khác: '+noteEl.value;
+        }
+        otherItems[label] = qtyEl?qtyEl.value:'';
+      }
+    });
+    obj.other_replace = otherItems;
+  }
+  return JSON.stringify(obj);
+}
+
+function clearTaskDetails(){
+  const cip = document.getElementById('task_cip');
+  if(cip){ cip.checked=false; document.getElementById('taskDetail_cip').style.display='none'; }
+  document.querySelectorAll('.tcip-sys').forEach(cb=>cb.checked=false);
+  document.querySelectorAll('.tcip-chem-check').forEach(cb=>cb.checked=false);
+  document.querySelectorAll('.tcip-chem-qty').forEach(i=>i.value='');
+
+  document.querySelectorAll('.tmech-check').forEach(cb=>cb.checked=false);
+  document.querySelectorAll('[id^="taskDetail_mech_"]').forEach(d=>d.style.display='none');
+  document.querySelectorAll('.tmech-qty').forEach(i=>i.value='');
+  document.querySelectorAll('[id^="tmech_qty_wrap_"]').forEach(w=>w.style.display='none');
+  document.querySelectorAll('.tmech-type').forEach(s=>s.value='Vệ sinh bằng nước');
+
+  const other = document.getElementById('task_other');
+  if(other){ other.checked=false; document.getElementById('taskDetail_other').style.display='none'; }
+  document.querySelectorAll('.tother-check').forEach(cb=>cb.checked=false);
+  document.querySelectorAll('.tother-qty').forEach(i=>i.value='');
+  const noteEl = document.querySelector('.tother-note'); if(noteEl) noteEl.value='';
 }
 
 function previewPhoto(inputId, imgId){
@@ -930,6 +1090,7 @@ function clearEntryForm(){
   document.getElementById('preview_influent').style.display = 'none';
   document.getElementById('preview_ro').style.display = 'none';
   clearDetailFields();
+  clearTaskDetails();
 }
 
 async function saveEntry(){
@@ -966,6 +1127,7 @@ async function saveEntry(){
     tasks_done: collectTasksDone(),
     notes: document.getElementById('ef_notes').value,
     detail_json: collectDetailFieldsJSON(),
+    tasks_detail_json: collectTasksDetailJSON(),
     photo_influent_base64: photoInfluentB64,
     photo_ro_base64: photoRoB64
   };
