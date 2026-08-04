@@ -1576,11 +1576,11 @@ function renderFlowChart(){
   const s = computeUFROSeries(b.influent);
   if(charts.flowTrend) charts.flowTrend.destroy();
   charts.flowTrend = new Chart(document.getElementById('flowTrend'), {
-    type:'line',
+    type:'bar',
     data:{labels:b.labels, datasets:[
-      {label:'Nước thải đầu vào', data:b.influent, borderColor:'#f5811f', backgroundColor:'#f5811f', tension:.35, pointRadius:3},
-      {label:'Nước sạch UF', data:s.ufPermeate, borderColor:'#4fc3f7', backgroundColor:'#4fc3f7', tension:.35, pointRadius:3},
-      {label:'Nước sạch RO', data:b.roPermeate, borderColor:'#f5f5f5', backgroundColor:'#f5f5f5', tension:.35, pointRadius:3}
+      {label:'Nước thải đầu vào', data:b.influent, backgroundColor:'#f5811f', borderRadius:4},
+      {label:'Nước sạch UF', data:s.ufPermeate, backgroundColor:'#4fc3f7', borderRadius:4},
+      {label:'Nước sạch RO', data:b.roPermeate, backgroundColor:'#f5f5f5', borderRadius:4}
     ]},
     options:{responsive:true,maintainAspectRatio:false,
       plugins:{legend:{position:'bottom',labels:{boxWidth:8,boxHeight:8,padding:8,font:{size:9.5}}}},
