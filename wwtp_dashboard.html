@@ -872,20 +872,34 @@ function buildPointTable(prefix, points){
 
 function buildRoGroup(letter){
   const l = letter.toLowerCase();
-  function r(label, idBase){
+  function r(label, idBase, extraAttr){
+    extraAttr = extraAttr || '';
     return `<tr><td class="label-col">${label}</td>
-      <td class="col-sang"><input type="number" step="0.1" id="d_${idBase}_sang" class="detail-input"></td>
-      <td class="col-toi"><input type="number" step="0.1" id="d_${idBase}_toi" class="detail-input"></td></tr>`;
+      <td class="col-sang"><input type="number" step="0.1" id="d_${idBase}_sang" class="detail-input" ${extraAttr}></td>
+      <td class="col-toi"><input type="number" step="0.1" id="d_${idBase}_toi" class="detail-input" ${extraAttr}></td></tr>`;
   }
   let rows = '';
   ['1','2','3'].forEach(n=>{ rows += r(`CS bơm RO ${letter}-${n} (Hz)`, `cs_ro${l}${n}`); });
   ['1','2','3'].forEach(n=>{ rows += r(`Áp vào RO ${letter}-${n} (Bar)`, `apvao_ro${l}${n}`); });
   ['1','2','3'].forEach(n=>{ rows += r(`Áp Reject RO ${letter}-${n} (Bar)`, `apreject_ro${l}${n}`); });
   rows += r(`Nước cấp RO ${letter} (m³/h)`, `nuoccap_ro${l}`);
-  rows += r(`Nước sạch RO ${letter} (m³/h)`, `nuocsach_ro${l}`);
+  rows += r(`Nước sạch RO ${letter} (m³/h)`, `nuocsach_ro${l}`, 'oninput="autoCalcNuocSachRO()"');
   rows += r(`Nước Reject RO ${letter} (m³/h)`, `nuocreject_ro${l}`);
   ['1','2','3'].forEach(n=>{ rows += r(`Đồng hồ nước ${letter}${n} (m³/h)`, `dhn_${l}${n}`); });
   return `<div class="ef-detail-group"><h5>Hệ RO ${letter}</h5><table class="ef-detail-table"><thead><tr><th style="text-align:left;">Thông số</th><th class="col-sang">Sáng</th><th class="col-toi">Tối</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+function autoCalcNuocSachRO(){
+  const shift = document.getElementById('ef_shift')?.value || 'Ca ngày';
+  const suf = shift.indexOf('tối')>-1 ? 'toi' : 'sang';
+  const aEl = document.getElementById(`d_nuocsach_roa_${suf}`);
+  const bEl = document.getElementById(`d_nuocsach_rob_${suf}`);
+  const aVal = aEl && aEl.value !== '' ? parseFloat(aEl.value) : null;
+  const bVal = bEl && bEl.value !== '' ? parseFloat(bEl.value) : null;
+  if(aVal===null && bVal===null) return; // chua nhap gi thi khong dong gi ca
+  const total = (aVal||0) + (bVal||0);
+  const efRo = document.getElementById('ef_ro');
+  if(efRo) efRo.value = total;
 }
 
 function updateShiftColumns(){
