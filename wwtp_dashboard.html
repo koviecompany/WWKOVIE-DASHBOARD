@@ -136,7 +136,7 @@
   .ef-detail{margin:14px 0;border:1px solid var(--border);border-radius:8px;background:var(--panel2);padding:2px 10px;}
   .ef-detail summary{cursor:pointer;padding:8px 2px;font-size:11.5px;color:var(--orange);font-weight:700;}
   .ef-detail[open] summary{border-bottom:1px solid var(--border);margin-bottom:8px;}
-  .ef-detail-group{margin:10px 0;}
+  .ef-detail-group{margin:10px 0;overflow-x:auto;}
   .ef-detail-group h5{font-size:10.5px;color:var(--gray);margin:0 0 6px;text-transform:uppercase;letter-spacing:.3px;}
   .ef-detail-table{width:100%;border-collapse:collapse;margin-bottom:10px;}
   .ef-detail-table td{padding:3px 4px;font-size:10.5px;}
@@ -154,7 +154,7 @@
   .ef-tasks label{display:flex;align-items:center;gap:8px;font-size:11.5px;color:#d8d8d8;background:var(--panel2);padding:8px 10px;border-radius:8px;border:1px solid var(--border);}
   .task-block{margin:10px 0;border:1px solid var(--border);border-radius:8px;background:var(--panel2);padding:8px 10px;}
   .task-toggle{display:flex;align-items:center;gap:8px;font-size:11.5px;color:#d8d8d8;cursor:pointer;}
-  .task-detail{margin-top:8px;padding-top:8px;border-top:1px solid var(--border);}
+  .task-detail{margin-top:8px;padding-top:8px;border-top:1px solid var(--border);overflow-x:auto;}
   .entry-form textarea{width:100%;background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--white);font-size:12px;font-family:inherit;resize:vertical;}
   .ef-actions{display:flex;gap:10px;margin-top:14px;}
   .btn-save{background:var(--orange);color:#151515;font-weight:800;border:none;border-radius:8px;padding:10px 20px;cursor:pointer;font-size:12.5px;}
@@ -201,7 +201,6 @@
     </label>
     <button id="loginBtn" onclick="doLogin()">Đăng nhập</button>
     <div class="login-msg" id="loginMsg"></div>
-    <div class="login-demo" onclick="loadDemo()">Xem thử với dữ liệu demo (bỏ qua đăng nhập)</div>
     <div class="login-demo" id="switchAccountLink" onclick="switchAccount()" style="display:none;">🔄 Đăng nhập bằng tài khoản khác</div>
   </div>
 </div>
@@ -429,7 +428,7 @@
       </h3>
       <p style="font-size:10px;color:var(--gray2);margin:0 0 10px;">= Tổng lượng hóa chất dùng ÷ Tổng lưu lượng nước thải đầu vào trong cùng khoảng thời gian, tính từ báo cáo ca của nhân viên vận hành.</p>
       <div style="overflow-x:auto;">
-        <table><thead><tr><th style="text-align:left;">Hóa chất</th><th>Định mức trung bình</th><th>Đơn vị</th></tr></thead><tbody id="doseTableBody"></tbody></table>
+        <div style="overflow-x:auto;"><table><thead><tr><th style="text-align:left;">Hóa chất</th><th>Định mức trung bình</th><th>Đơn vị</th></tr></thead><tbody id="doseTableBody"></tbody></table></div>
       </div>
       <div class="chart-wrap" style="min-height:220px;margin-top:12px;"><canvas id="doseChart"></canvas></div>
     </div>
@@ -446,6 +445,7 @@
       </div>
 
       <h4 style="margin-top:14px;">Hóa chất sử dụng để CIP</h4>
+      <div style="overflow-x:auto;">
       <table class="ef-detail-table" id="cipChemTable">
         <thead><tr><th style="text-align:left;">Chọn</th><th style="text-align:left;">Hóa chất</th><th>Số lượng</th><th>Đơn vị</th></tr></thead>
         <tbody>
@@ -459,6 +459,7 @@
             <td><select class="cip-chem-unit" data-chem="SMB"><option value="kg">kg</option><option value="lít">lít</option></select></td></tr>
         </tbody>
       </table>
+      </div>
 
       <div class="ef-row"><label>Ghi chú</label><input type="text" id="cip_note" placeholder="Ghi chú thêm (nếu có)" style="min-width:220px;"></div>
 
@@ -696,7 +697,7 @@ const PAGES = {
   overview:       ['p5','p1','p4','p9','p12','p6','pTrainCharts'],
   nhap_lieu:      ['pDataEntry'],
   baocao_vanhanh: ['p1','p9','p5','p8','p11'],
-  luu_luong:      ['p1','p8','p6','p2'],
+  luu_luong:      ['p1','p8','p6','p12','p2','pTrainCharts'],
   nhap_hoa_chat:  ['pChemInventory','pChemReceive'],
   hoa_chat:       ['p9','pChemUsage','pChemInventory','pChemStockIn','pChemDose'],
   chat_luong:     ['p4','p10','p11'],
