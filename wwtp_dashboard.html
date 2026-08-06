@@ -265,9 +265,9 @@
         <span style="display:flex;gap:6px;align-items:center;">
           <select id="flowViewMode" onchange="onFlowViewModeChange()" style="background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:10px;padding:3px 6px;">
             <option value="ca">Theo ca</option>
-            <option value="ngay">Theo ngày</option>
+            <option value="ngay" selected>Theo ngày</option>
             <option value="tuan">Theo tuần</option>
-            <option value="thang" selected>Theo tháng</option>
+            <option value="thang">Theo tháng</option>
           </select>
           <select id="flowCaSelect" onchange="renderFlowChart()" style="display:none;background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:10px;padding:3px 6px;">
             <option value="ngay">Ca ngày (07h–19h)</option>
@@ -290,9 +290,9 @@
       <h3>XU HƯỚNG TỶ LỆ RECOVERY — RO & UF (%)
         <select id="recoveryViewMode" onchange="renderEfficiencyTrend()" style="background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:10px;padding:3px 6px;">
           <option value="ca">Theo ca</option>
-          <option value="ngay">Theo ngày</option>
+          <option value="ngay" selected>Theo ngày</option>
           <option value="tuan">Theo tuần</option>
-          <option value="thang" selected>Theo tháng</option>
+          <option value="thang">Theo tháng</option>
         </select>
       </h3>
       <div class="chart-wrap"><canvas id="efficiencyTrend"></canvas></div>
@@ -319,9 +319,9 @@
         <span style="display:flex;gap:6px;align-items:center;">
           <select id="chemViewMode" onchange="onChemViewModeChange()" style="background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:10px;padding:3px 6px;">
             <option value="ca">Theo ca</option>
-            <option value="ngay">Theo ngày</option>
+            <option value="ngay" selected>Theo ngày</option>
             <option value="tuan">Theo tuần</option>
-            <option value="thang" selected>Theo tháng</option>
+            <option value="thang">Theo tháng</option>
           </select>
         </span>
       </h3>
@@ -331,9 +331,9 @@
       <h3>CHỈ SỐ CHẤT LƯỢNG NƯỚC RO (pH · TDS · Độ màu · Độ đục · ORP)
         <select id="qualityViewMode" onchange="renderWaterQualityTrend()" style="background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:10px;padding:3px 6px;">
           <option value="ca">Theo ca</option>
-          <option value="ngay">Theo ngày</option>
+          <option value="ngay" selected>Theo ngày</option>
           <option value="tuan">Theo tuần</option>
-          <option value="thang" selected>Theo tháng</option>
+          <option value="thang">Theo tháng</option>
         </select>
       </h3>
       <div class="chart-wrap"><canvas id="effMonth"></canvas></div>
@@ -341,9 +341,9 @@
     <div class="panel full" id="panel-pTrainCharts">
       <h3>CHỈ SỐ THEO TỪNG BỂ TRONG DÂY CHUYỀN
         <select id="trainViewMode" onchange="renderTrainCharts()" style="background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:10px;padding:3px 6px;">
-          <option value="ngay">Theo ngày</option>
+          <option value="ngay" selected>Theo ngày</option>
           <option value="tuan">Theo tuần</option>
-          <option value="thang" selected>Theo tháng</option>
+          <option value="thang">Theo tháng</option>
         </select>
       </h3>
       <p style="font-size:10px;color:var(--gray2);margin:0 0 10px;">Trục hoành: các bể/điểm đo dọc dây chuyền · Trục tung: giá trị trung bình chỉ số trong khoảng thời gian đã chọn.</p>
@@ -426,9 +426,9 @@
       <h3>📊 ĐỊNH MỨC HÓA CHẤT TRUNG BÌNH / M³ NƯỚC THẢI
         <select id="doseViewMode" onchange="renderDoseChart()" style="background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:10px;padding:3px 6px;">
           <option value="ca">Theo ca</option>
-          <option value="ngay">Theo ngày</option>
+          <option value="ngay" selected>Theo ngày</option>
           <option value="tuan">Theo tuần</option>
-          <option value="thang" selected>Theo tháng</option>
+          <option value="thang">Theo tháng</option>
         </select>
       </h3>
       <p style="font-size:10px;color:var(--gray2);margin:0 0 10px;">= Tổng lượng hóa chất dùng ÷ Tổng lưu lượng nước thải đầu vào trong cùng khoảng thời gian, tính từ báo cáo ca của nhân viên vận hành.</p>
@@ -1101,7 +1101,7 @@ function computeCipSmartAlerts(d){
 /* ================= ĐỊNH MỨC HÓA CHẤT TRUNG BÌNH / M³ NƯỚC THẢI ================= */
 function renderDoseChart(){
   if(!lastData) return;
-  const mode = document.getElementById('doseViewMode')?.value || 'thang';
+  const mode = document.getElementById('doseViewMode')?.value || 'ngay';
   const b = getTimeBuckets(mode);
   const labels = b.labels;
   const allEntries = labels.reduce((acc,l)=>acc.concat(b.groups[l]||[]), []);
@@ -1765,7 +1765,7 @@ function changeFlowWeek(delta){
 
 function renderFlowChart(){
   if(!lastData) return;
-  const mode = document.getElementById('flowViewMode')?.value || 'thang';
+  const mode = document.getElementById('flowViewMode')?.value || 'ngay';
   const b = getFlowBuckets(mode);
   const s = computeUFROSeries(b.influent);
   if(charts.flowTrend) charts.flowTrend.destroy();
@@ -1852,7 +1852,7 @@ function avgField(entries, field){
 
 function renderEfficiencyTrend(){
   if(!lastData) return;
-  const mode = document.getElementById('recoveryViewMode')?.value || 'thang';
+  const mode = document.getElementById('recoveryViewMode')?.value || 'ngay';
   let labels, roRecovery;
   if(mode==='thang'){
     labels = (lastData.monthlyTrend||[]).map(r=>r.month);
@@ -1943,7 +1943,7 @@ function onChemViewModeChange(){
 
 function renderChemByMode(){
   if(!lastData) return;
-  const mode = document.getElementById('chemViewMode')?.value || 'thang';
+  const mode = document.getElementById('chemViewMode')?.value || 'ngay';
   const entries = lastData.dailyEntries || [];
 
   if(entries.length===0){
@@ -2050,7 +2050,7 @@ function avgPointValue(entries, prefix, point){
 }
 
 function renderTrainChart(canvasId, prefix, points, color){
-  const mode = document.getElementById('trainViewMode')?.value || 'thang';
+  const mode = document.getElementById('trainViewMode')?.value || 'ngay';
   const entries = getEntriesForPeriod(mode);
   const data = points.map(p => +(avgPointValue(entries, prefix, p)).toFixed(2));
   const key = 'train_'+canvasId;
@@ -2078,7 +2078,7 @@ function renderTrainCharts(){
 
 function renderWaterQualityTrend(){
   if(!lastData) return;
-  const mode = document.getElementById('qualityViewMode')?.value || 'thang';
+  const mode = document.getElementById('qualityViewMode')?.value || 'ngay';
   let labels, ph, tds, color, orp, turbidity, hasTurbidity;
 
   if(mode==='thang'){
