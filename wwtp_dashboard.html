@@ -273,6 +273,11 @@
             <option value="ngay">Ca ngày (07h–19h)</option>
             <option value="toi">Ca tối (19h–07h)</option>
           </select>
+          <span id="flowWeekNav" style="display:none;align-items:center;gap:4px;">
+            <button onclick="changeFlowWeek(-1)" title="Tuần trước" style="background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:11px;padding:3px 7px;cursor:pointer;">◀</button>
+            <span id="flowWeekLabel" style="font-size:9.5px;color:var(--gray);white-space:nowrap;"></span>
+            <button onclick="changeFlowWeek(1)" title="Tuần sau" style="background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:11px;padding:3px 7px;cursor:pointer;">▶</button>
+          </span>
         </span>
       </h3>
       <div class="chart-wrap"><canvas id="flowTrend"></canvas></div>
@@ -1690,6 +1695,7 @@ function getFlowBuckets(mode){
     return { labels: hourLabels, influent: hourLabels.map(()=>infVal), roPermeate: hourLabels.map(()=>roVal) };
   } else if(mode==='ngay'){
     const monday = getMondayOfWeek(new Date());
+    monday.setDate(monday.getDate() + flowWeekOffset*7);
     const dayNames = ['Thứ 2','Thứ 3','Thứ 4','Thứ 5','Thứ 6','Thứ 7'];
     labels = dayNames.map((n,i)=>{ const d=new Date(monday); d.setDate(monday.getDate()+i); return `${n} (${dateLabel(d)})`; });
     labels.forEach(l=>{ infBucket[l]=0; roBucket[l]=0; });
@@ -1701,6 +1707,9 @@ function getFlowBuckets(mode){
       const key = labels[diffDays];
       infBucket[key]+=Number(e.influent_m3||0); roBucket[key]+=Number(e.ro_permeate_m3||0);
     });
+    const satDate = new Date(monday); satDate.setDate(monday.getDate()+5);
+    const lbl = document.getElementById('flowWeekLabel');
+    if(lbl) lbl.textContent = `${dateLabel(monday)} - ${dateLabel(satDate)}` + (flowWeekOffset===0 ? ' (tuần này)' : '');
   } else { // tuan
     entries.forEach(e=>{
       const dt = parseDateSmart(e.date);
@@ -1722,9 +1731,18 @@ function computeUFROSeries(influent){
   return {ufPermeate};
 }
 
+let flowWeekOffset = 0; // 0 = tuan hien tai, -1 = tuan truoc, +1 = tuan sau...
+
 function onFlowViewModeChange(){
   const mode = document.getElementById('flowViewMode').value;
   document.getElementById('flowCaSelect').style.display = mode==='ca' ? 'inline-block' : 'none';
+  document.getElementById('flowWeekNav').style.display = mode==='ngay' ? 'flex' : 'none';
+  if(mode==='ngay') flowWeekOffset = 0;
+  renderFlowChart();
+}
+
+function changeFlowWeek(delta){
+  flowWeekOffset += delta;
   renderFlowChart();
 }
 
