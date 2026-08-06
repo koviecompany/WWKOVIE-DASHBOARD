@@ -927,14 +927,18 @@ function buildDetailForms(){
   updateShiftColumns();
 }
 
-function collectDetailFieldsJSON(){
+function collectDetailFields(){
+  // Tra ve object phang {ten_cot: gia_tri} - KHONG con hau to _sang/_toi vi moi dong
+  // trong DailyEntries da la 1 ca roi (ngay chinh cot 'shift' the hien ca nao)
   const obj = {};
   document.querySelectorAll('.detail-input').forEach(inp=>{
     const td = inp.closest('td');
     if(td && td.style.display === 'none') return;
-    if(inp.value!=='') obj[inp.id.replace(/^d_/,'')] = inp.value;
+    if(inp.value==='') return;
+    const key = inp.id.replace(/^d_/,'').replace(/_(sang|toi)$/,'');
+    obj[key] = inp.value;
   });
-  return JSON.stringify(obj);
+  return obj;
 }
 function clearDetailFields(){
   document.querySelectorAll('.detail-input').forEach(inp=>inp.value='');
@@ -990,11 +994,9 @@ async function saveCip(){
 
 /* ---- Cảnh báo CIP thông minh (rule-based, phân tích xu hướng từ dữ liệu đã nhập) ---- */
 function avgDetailField(entry, fieldSlug){
-  if(!entry.detail_json) return null;
-  let s; try{ s = JSON.parse(entry.detail_json); }catch(e){ return null; }
-  const sang = parseFloat(s[fieldSlug+'_sang']), toi = parseFloat(s[fieldSlug+'_toi']);
-  const vals = [sang,toi].filter(v=>!isNaN(v));
-  return vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : null;
+  // Moi dong = 1 ca, gio doc truc tiep tu cot rieng (khong con goi trong detail_json)
+  const v = parseFloat(entry[fieldSlug]);
+  return isNaN(v) ? null : v;
 }
 
 /* ================= ÁP SUẤT RO — ĐẦU VÀO & REJECT (từ chi tiết báo cáo ca) ================= */
@@ -1539,7 +1541,6 @@ async function saveEntry(){
     chem_genesys: document.getElementById('ef_genesys').value,
     tasks_done: collectTasksDone(),
     notes: document.getElementById('ef_notes').value,
-    detail_json: collectDetailFieldsJSON(),
     tasks_detail_json: collectTasksDetailJSON(),
     has_incident: document.getElementById('task_incident')?.checked ? 'Có' : '',
     incident_desc: document.getElementById('ef_incident_desc').value,
@@ -1547,6 +1548,7 @@ async function saveEntry(){
     photo_ro_base64: photoRoB64,
     photo_incident_base64: photoIncidentB64
   };
+  Object.assign(entry, collectDetailFields()); // gop tung cot chi tiet (pH/TDS/ORP/RO A-B...) thang vao entry
   if(!entry.date || !entry.shift){ msg.style.color='var(--red)'; msg.textContent='Vui lòng chọn ngày và ca.'; return; }
 
   if(isApiConfigured() && currentUser && currentUser.username!=='demo'){
@@ -2317,23 +2319,23 @@ const DEMO_DATA = {
   dailyEntries:[
     {timestamp:'2026-07-21T07:00:00.000Z', date:'2026-07-21', shift:'Ca ngày', username:'admin', fullname:'Dương Đại Long',
      influent_m3:600, ro_permeate_m3:400, pump_to_yy_m3:380, recovery_pct:66.1, ph_ro:6.7, tds_ro:59, orp_ro:242, color_ro:13, turbidity_ro:5.2,
-     detail_json: "{\"apvao_roa1_sang\": 5.4, \"apvao_roa1_toi\": 5.4, \"apreject_roa1_sang\": 2.6, \"apreject_roa1_toi\": 2.6, \"apvao_roa2_sang\": 5.4, \"apvao_roa2_toi\": 5.4, \"apreject_roa2_sang\": 2.6, \"apreject_roa2_toi\": 2.6, \"apvao_roa3_sang\": 5.4, \"apvao_roa3_toi\": 5.4, \"apreject_roa3_sang\": 2.6, \"apreject_roa3_toi\": 2.6, \"apvao_rob1_sang\": 5.4, \"apvao_rob1_toi\": 5.4, \"apreject_rob1_sang\": 2.6, \"apreject_rob1_toi\": 2.6, \"apvao_rob2_sang\": 5.4, \"apvao_rob2_toi\": 5.4, \"apreject_rob2_sang\": 2.6, \"apreject_rob2_toi\": 2.6, \"apvao_rob3_sang\": 5.4, \"apvao_rob3_toi\": 5.4, \"apreject_rob3_sang\": 2.6, \"apreject_rob3_toi\": 2.6, \"tds_loc_uf_a_sang\": 205, \"tds_loc_uf_a_toi\": 205, \"tds_loc_uf_b_sang\": 208, \"tds_loc_uf_b_toi\": 208}", chem_pac:60, chem_polymer:75, chem_naoh:28, chem_javen:18, chem_hcl:9, chem_citric:7, chem_genesys:6,
+     apvao_roa1: 5.4, apreject_roa1: 2.6, apvao_roa2: 5.4, apreject_roa2: 2.6, apvao_roa3: 5.4, apreject_roa3: 2.6, apvao_rob1: 5.4, apreject_rob1: 2.6, apvao_rob2: 5.4, apreject_rob2: 2.6, apvao_rob3: 5.4, apreject_rob3: 2.6, tds_loc_uf_a: 205, tds_loc_uf_b: 208, chem_pac:60, chem_polymer:75, chem_naoh:28, chem_javen:18, chem_hcl:9, chem_citric:7, chem_genesys:6,
      tasks_done:'Kiểm tra áp lực bơm RO', notes:''},
     {timestamp:'2026-07-21T19:00:00.000Z', date:'2026-07-21', shift:'Ca tối', username:'vanhanh01', fullname:'Trần Thị B',
      influent_m3:590, ro_permeate_m3:390, pump_to_yy_m3:375, recovery_pct:65.8, ph_ro:6.6, tds_ro:60, orp_ro:239, color_ro:14, turbidity_ro:5.2,
-     detail_json: "{\"apvao_roa1_sang\": 5.5, \"apvao_roa1_toi\": 5.5, \"apreject_roa1_sang\": 2.7, \"apreject_roa1_toi\": 2.7, \"apvao_roa2_sang\": 5.5, \"apvao_roa2_toi\": 5.5, \"apreject_roa2_sang\": 2.7, \"apreject_roa2_toi\": 2.7, \"apvao_roa3_sang\": 5.5, \"apvao_roa3_toi\": 5.5, \"apreject_roa3_sang\": 2.7, \"apreject_roa3_toi\": 2.7, \"apvao_rob1_sang\": 5.5, \"apvao_rob1_toi\": 5.5, \"apreject_rob1_sang\": 2.7, \"apreject_rob1_toi\": 2.7, \"apvao_rob2_sang\": 5.5, \"apvao_rob2_toi\": 5.5, \"apreject_rob2_sang\": 2.7, \"apreject_rob2_toi\": 2.7, \"apvao_rob3_sang\": 5.5, \"apvao_rob3_toi\": 5.5, \"apreject_rob3_sang\": 2.7, \"apreject_rob3_toi\": 2.7, \"tds_loc_uf_a_sang\": 208, \"tds_loc_uf_a_toi\": 208, \"tds_loc_uf_b_sang\": 210, \"tds_loc_uf_b_toi\": 210}", chem_pac:58, chem_polymer:72, chem_naoh:27, chem_javen:17, chem_hcl:9, chem_citric:6, chem_genesys:6,
+     apvao_roa1: 5.5, apreject_roa1: 2.7, apvao_roa2: 5.5, apreject_roa2: 2.7, apvao_roa3: 5.5, apreject_roa3: 2.7, apvao_rob1: 5.5, apreject_rob1: 2.7, apvao_rob2: 5.5, apreject_rob2: 2.7, apvao_rob3: 5.5, apreject_rob3: 2.7, tds_loc_uf_a: 208, tds_loc_uf_b: 210, chem_pac:58, chem_polymer:72, chem_naoh:27, chem_javen:17, chem_hcl:9, chem_citric:6, chem_genesys:6,
      tasks_done:'Vệ sinh lọc UF, Ghi chỉ số đồng hồ nước', notes:''},
     {timestamp:'2026-07-22T07:00:00.000Z', date:'2026-07-22', shift:'Ca ngày', username:'admin', fullname:'Dương Đại Long',
      influent_m3:615, ro_permeate_m3:410, pump_to_yy_m3:392, recovery_pct:66.4, ph_ro:6.7, tds_ro:58, orp_ro:244, color_ro:12, turbidity_ro:5.2,
-     detail_json: "{\"apvao_roa1_sang\": 5.6, \"apvao_roa1_toi\": 5.6, \"apreject_roa1_sang\": 2.9, \"apreject_roa1_toi\": 2.9, \"apvao_roa2_sang\": 5.6, \"apvao_roa2_toi\": 5.6, \"apreject_roa2_sang\": 2.9, \"apreject_roa2_toi\": 2.9, \"apvao_roa3_sang\": 5.6, \"apvao_roa3_toi\": 5.6, \"apreject_roa3_sang\": 2.9, \"apreject_roa3_toi\": 2.9, \"apvao_rob1_sang\": 5.6, \"apvao_rob1_toi\": 5.6, \"apreject_rob1_sang\": 2.9, \"apreject_rob1_toi\": 2.9, \"apvao_rob2_sang\": 5.6, \"apvao_rob2_toi\": 5.6, \"apreject_rob2_sang\": 2.9, \"apreject_rob2_toi\": 2.9, \"apvao_rob3_sang\": 5.6, \"apvao_rob3_toi\": 5.6, \"apreject_rob3_sang\": 2.9, \"apreject_rob3_toi\": 2.9, \"tds_loc_uf_a_sang\": 212, \"tds_loc_uf_a_toi\": 212, \"tds_loc_uf_b_sang\": 214, \"tds_loc_uf_b_toi\": 214}", chem_pac:62, chem_polymer:77, chem_naoh:29, chem_javen:19, chem_hcl:10, chem_citric:7, chem_genesys:6,
+     apvao_roa1: 5.6, apreject_roa1: 2.9, apvao_roa2: 5.6, apreject_roa2: 2.9, apvao_roa3: 5.6, apreject_roa3: 2.9, apvao_rob1: 5.6, apreject_rob1: 2.9, apvao_rob2: 5.6, apreject_rob2: 2.9, apvao_rob3: 5.6, apreject_rob3: 2.9, tds_loc_uf_a: 212, tds_loc_uf_b: 214, chem_pac:62, chem_polymer:77, chem_naoh:29, chem_javen:19, chem_hcl:10, chem_citric:7, chem_genesys:6,
      tasks_done:'Kiểm tra tồn kho hóa chất, Kiểm tra pH/TDS/ORP đầu ra', notes:''},
     {timestamp:'2026-07-22T19:00:00.000Z', date:'2026-07-22', shift:'Ca tối', username:'kythuat01', fullname:'Lê Văn C',
      influent_m3:605, ro_permeate_m3:405, pump_to_yy_m3:388, recovery_pct:66.9, ph_ro:6.8, tds_ro:58, orp_ro:246, color_ro:12, turbidity_ro:5.2,
-     detail_json: "{\"apvao_roa1_sang\": 5.7, \"apvao_roa1_toi\": 5.7, \"apreject_roa1_sang\": 3.1, \"apreject_roa1_toi\": 3.1, \"apvao_roa2_sang\": 5.7, \"apvao_roa2_toi\": 5.7, \"apreject_roa2_sang\": 3.1, \"apreject_roa2_toi\": 3.1, \"apvao_roa3_sang\": 5.7, \"apvao_roa3_toi\": 5.7, \"apreject_roa3_sang\": 3.1, \"apreject_roa3_toi\": 3.1, \"apvao_rob1_sang\": 5.7, \"apvao_rob1_toi\": 5.7, \"apreject_rob1_sang\": 3.1, \"apreject_rob1_toi\": 3.1, \"apvao_rob2_sang\": 5.7, \"apvao_rob2_toi\": 5.7, \"apreject_rob2_sang\": 3.1, \"apreject_rob2_toi\": 3.1, \"apvao_rob3_sang\": 5.7, \"apvao_rob3_toi\": 5.7, \"apreject_rob3_sang\": 3.1, \"apreject_rob3_toi\": 3.1, \"tds_loc_uf_a_sang\": 218, \"tds_loc_uf_a_toi\": 218, \"tds_loc_uf_b_sang\": 219, \"tds_loc_uf_b_toi\": 219}", chem_pac:63, chem_polymer:78, chem_naoh:30, chem_javen:19, chem_hcl:10, chem_citric:8, chem_genesys:6,
+     apvao_roa1: 5.7, apreject_roa1: 3.1, apvao_roa2: 5.7, apreject_roa2: 3.1, apvao_roa3: 5.7, apreject_roa3: 3.1, apvao_rob1: 5.7, apreject_rob1: 3.1, apvao_rob2: 5.7, apreject_rob2: 3.1, apvao_rob3: 5.7, apreject_rob3: 3.1, tds_loc_uf_a: 218, tds_loc_uf_b: 219, chem_pac:63, chem_polymer:78, chem_naoh:30, chem_javen:19, chem_hcl:10, chem_citric:8, chem_genesys:6,
      tasks_done:'Ghi chỉ số đồng hồ nước', notes:''},
     {timestamp:'2026-07-23T07:00:00.000Z', date:'2026-07-23', shift:'Ca ngày', username:'admin', fullname:'Dương Đại Long',
      influent_m3:645, ro_permeate_m3:430, pump_to_yy_m3:410, recovery_pct:66.7, ph_ro:6.8, tds_ro:58, orp_ro:245, color_ro:12, turbidity_ro:5.2,
-     detail_json: "{\"apvao_roa1_sang\": 5.9, \"apvao_roa1_toi\": 5.9, \"apreject_roa1_sang\": 3.4, \"apreject_roa1_toi\": 3.4, \"apvao_roa2_sang\": 5.9, \"apvao_roa2_toi\": 5.9, \"apreject_roa2_sang\": 3.4, \"apreject_roa2_toi\": 3.4, \"apvao_roa3_sang\": 5.9, \"apvao_roa3_toi\": 5.9, \"apreject_roa3_sang\": 3.4, \"apreject_roa3_toi\": 3.4, \"apvao_rob1_sang\": 5.9, \"apvao_rob1_toi\": 5.9, \"apreject_rob1_sang\": 3.4, \"apreject_rob1_toi\": 3.4, \"apvao_rob2_sang\": 5.9, \"apvao_rob2_toi\": 5.9, \"apreject_rob2_sang\": 3.4, \"apreject_rob2_toi\": 3.4, \"apvao_rob3_sang\": 5.9, \"apvao_rob3_toi\": 5.9, \"apreject_rob3_sang\": 3.4, \"apreject_rob3_toi\": 3.4, \"tds_loc_uf_a_sang\": 225, \"tds_loc_uf_a_toi\": 225, \"tds_loc_uf_b_sang\": 227, \"tds_loc_uf_b_toi\": 227}", chem_pac:65, chem_polymer:80, chem_naoh:31, chem_javen:21, chem_hcl:10, chem_citric:8, chem_genesys:6,
+     apvao_roa1: 5.9, apreject_roa1: 3.4, apvao_roa2: 5.9, apreject_roa2: 3.4, apvao_roa3: 5.9, apreject_roa3: 3.4, apvao_rob1: 5.9, apreject_rob1: 3.4, apvao_rob2: 5.9, apreject_rob2: 3.4, apvao_rob3: 5.9, apreject_rob3: 3.4, tds_loc_uf_a: 225, tds_loc_uf_b: 227, chem_pac:65, chem_polymer:80, chem_naoh:31, chem_javen:21, chem_hcl:10, chem_citric:8, chem_genesys:6,
      tasks_done:'Kiểm tra áp lực bơm RO, Ghi chỉ số đồng hồ nước', notes:''}
   ],
   cipLog:[
