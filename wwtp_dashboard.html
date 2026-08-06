@@ -897,7 +897,8 @@ function autoCalcNuocSachRO(){
   const aVal = aEl && aEl.value !== '' ? parseFloat(aEl.value) : null;
   const bVal = bEl && bEl.value !== '' ? parseFloat(bEl.value) : null;
   if(aVal===null && bVal===null) return; // chua nhap gi thi khong dong gi ca
-  const total = (aVal||0) + (bVal||0);
+  const SO_GIO_MOI_CA = 12; // Ca ngay 7h-19h va Ca toi 19h-7h deu la 12 gio
+  const total = ((aVal||0) + (bVal||0)) * SO_GIO_MOI_CA;
   const efRo = document.getElementById('ef_ro');
   if(efRo) efRo.value = total;
 }
