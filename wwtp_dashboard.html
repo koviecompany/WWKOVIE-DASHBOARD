@@ -506,10 +506,22 @@
           <label>Nhân viên</label><input type="text" id="ef_fullname" readonly style="min-width:160px;">
         </div>
 
-        <h4>💧 Lưu lượng nước (số chính, bắt buộc nhập)</h4>
+        <h4>💧 Lưu lượng nước (số chính, bắt buộc nhập) <span style="font-size:9.5px;color:var(--gray2);font-weight:400;">— chụp ảnh đồng hồ, hệ thống tự đọc và điền số giúp</span></h4>
         <div class="ef-grid">
-          <div><label>Nước thải đầu vào (m³)</label><input type="number" id="ef_influent" placeholder="VD: 600"></div>
-          <div><label>Nước sạch RO (m³)</label><input type="number" id="ef_ro" placeholder="VD: 400"></div>
+          <div>
+            <label>Nước thải đầu vào (m³)</label>
+            <input type="number" id="ef_influent" placeholder="VD: 600">
+            <input type="file" accept="image/*" capture="environment" id="ef_photo_influent" onchange="previewPhoto('ef_photo_influent','preview_influent'); runMeterOCR('ef_photo_influent','ef_influent','ocr_notice_influent')" style="margin-top:6px;font-size:10.5px;">
+            <img id="preview_influent" style="display:none;max-width:110px;border-radius:8px;margin-top:6px;border:1px solid var(--border);">
+            <div id="ocr_notice_influent" class="ef-msg"></div>
+          </div>
+          <div>
+            <label>Nước sạch RO (m³)</label>
+            <input type="number" id="ef_ro" placeholder="VD: 400">
+            <input type="file" accept="image/*" capture="environment" id="ef_photo_ro" onchange="previewPhoto('ef_photo_ro','preview_ro'); runMeterOCR('ef_photo_ro','ef_ro','ocr_notice_ro')" style="margin-top:6px;font-size:10.5px;">
+            <img id="preview_ro" style="display:none;max-width:110px;border-radius:8px;margin-top:6px;border:1px solid var(--border);">
+            <div id="ocr_notice_ro" class="ef-msg"></div>
+          </div>
           <div><label>Nước bơm cho YY (m³)</label><input type="number" id="ef_pumpyy" placeholder="VD: 380"></div>
         </div>
 
@@ -531,22 +543,6 @@
         <details class="ef-detail" open><summary>⚙️ Chi tiết thông số RO A & RO B</summary>
           <div id="detailRoAB"></div>
         </details>
-
-        <h4>📷 Chụp ảnh đồng hồ đo <span style="font-size:9.5px;color:var(--gray2);font-weight:400;">(hệ thống sẽ tự đọc số và điền giúp — luôn kiểm tra lại trước khi lưu)</span></h4>
-        <div class="ef-grid">
-          <div>
-            <label>Ảnh đồng hồ Nước thải đầu vào</label>
-            <input type="file" accept="image/*" capture="environment" id="ef_photo_influent" onchange="previewPhoto('ef_photo_influent','preview_influent'); runMeterOCR('ef_photo_influent','ef_influent','ocr_notice_influent')">
-            <img id="preview_influent" style="display:none;max-width:130px;border-radius:8px;margin-top:6px;border:1px solid var(--border);">
-            <div id="ocr_notice_influent" class="ef-msg"></div>
-          </div>
-          <div>
-            <label>Ảnh đồng hồ Nước sạch RO bơm cho YY</label>
-            <input type="file" accept="image/*" capture="environment" id="ef_photo_ro" onchange="previewPhoto('ef_photo_ro','preview_ro'); runMeterOCR('ef_photo_ro','ef_ro','ocr_notice_ro')">
-            <img id="preview_ro" style="display:none;max-width:130px;border-radius:8px;margin-top:6px;border:1px solid var(--border);">
-            <div id="ocr_notice_ro" class="ef-msg"></div>
-          </div>
-        </div>
 
         <h4>Hóa chất sử dụng trong ca (lít)</h4>
         <div class="ef-grid">
