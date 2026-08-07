@@ -739,7 +739,7 @@ const PAGES = {
   xu_huong:       ['p1','p4','p9','p10'],
   ke_hoach:       ['p11','p5'],
   chenh_lech:     ['p7','p5'],
-  baocao:         ['pChemUsage','pChemInventory','pChemStockIn','pChemDose'],
+  baocao:         ['pChemInventory','pChemStockIn','pChemDose'],
   canh_bao:       ['pAlerts','pIncidents'],
   cip:            ['pCIP'],
   cai_dat:        ['pSettings']
@@ -759,8 +759,8 @@ function showPage(key, label){
     const el = document.getElementById('panel-'+id);
     if(el) content.appendChild(el);
   });
-  content.classList.toggle('grid-2col', key==='baocao');
-  content.classList.toggle('grid-full', key==='nhap_hoa_chat');
+  content.classList.toggle('grid-2col', false);
+  content.classList.toggle('grid-full', key==='nhap_hoa_chat' || key==='baocao');
   document.querySelectorAll('.nav a').forEach(a=>a.classList.remove('active'));
   const navEl = document.querySelector(`.nav a[data-page="${key}"]`);
   if(navEl) navEl.classList.add('active');
@@ -1800,7 +1800,7 @@ function getFlowBuckets(mode){
 
 function computeUFROSeries(influent){
   const ufInput = influent.map(v=>v*DEFAULT_UF_INPUT_PCT/100);
-  const ufPermeate = ufInput.map(v=>v*(1-DEFAULT_UF_REJECT_PCT/100)); // Nước sạch UF (sau lọc UF)
+  const ufPermeate = ufInput.map(v=>Math.round(v*(1-DEFAULT_UF_REJECT_PCT/100))); // Nước sạch UF (sau lọc UF) - làm tròn số nguyên
   return {ufPermeate};
 }
 
@@ -1864,7 +1864,11 @@ function getTimeBuckets(mode){
       groups[key].push(e);
     });
   } else if(mode==='ngay'){
-    const monday = getMondayOfWeek(new Date());
+    // Lay tuan CO DU LIEU GAN NHAT thay vi tuan theo lich thuc te,
+    // tranh truong hop hom nay chua co bao cao ca thi bieu do trong trơn
+    let latestDate = null;
+    entries.forEach(e=>{ const dt=parseDateSmart(e.date); if(dt && (!latestDate||dt>latestDate)) latestDate=dt; });
+    const monday = getMondayOfWeek(latestDate || new Date());
     const dayNames = ['Thứ 2','Thứ 3','Thứ 4','Thứ 5','Thứ 6','Thứ 7'];
     labels = dayNames.map((n,i)=>{ const d=new Date(monday); d.setDate(monday.getDate()+i); return `${n} (${dateLabel(d)})`; });
     labels.forEach(l=>groups[l]=[]);
@@ -1913,7 +1917,7 @@ function renderEfficiencyTrend(){
   if(mode==='thang'){
     labels = (lastData.monthlyTrend||[]).map(r=>r.month);
     roVals = (lastData.monthlyTrend||[]).map(r=>Number(r.ro_permeate_m3||0));
-    ufVals = (lastData.monthlyTrend||[]).map(r=>Number(r.uf_permeate_m3||0) || (Number(r.influent_m3||0)*(DEFAULT_UF_INPUT_PCT/100)*(1-DEFAULT_UF_REJECT_PCT/100)));
+    ufVals = (lastData.monthlyTrend||[]).map(r=>Math.round(Number(r.uf_permeate_m3||0) || (Number(r.influent_m3||0)*(DEFAULT_UF_INPUT_PCT/100)*(1-DEFAULT_UF_REJECT_PCT/100))));
   } else {
     const b = getTimeBuckets(mode);
     // Chi giu lai cac moc THOI GIAN CO BAO CAO CA (co du lieu) - bo qua ngay nghi/le khong san xuat,
@@ -1923,7 +1927,7 @@ function renderEfficiencyTrend(){
     roVals = labels.map(l=> sumField(b.groups[l]||[], 'ro_permeate_m3'));
     ufVals = labels.map(l=>{
       const inf = sumField(b.groups[l]||[], 'influent_m3');
-      return inf * (DEFAULT_UF_INPUT_PCT/100) * (1-DEFAULT_UF_REJECT_PCT/100);
+      return Math.round(inf * (DEFAULT_UF_INPUT_PCT/100) * (1-DEFAULT_UF_REJECT_PCT/100));
     });
   }
 
@@ -2396,8 +2400,8 @@ renderOperatingSummary();
     <div class="bar-track"><div class="bar-fill" style="width:${(r.current_stock/maxStock*100)}%;background:${barColor};"></div></div></div>`;
   }).join('');
 
-  // Chemical stock-in log
-  document.getElementById('stockInBody').innerHTML = (d.chemicalStockIn||[]).map(r=>{
+  // Chemical stock-in log - moi nhat len tren cung
+  document.getElementById('stockInBody').innerHTML = (d.chemicalStockIn||[]).slice().reverse().map(r=>{
     const invoiceLink = r.invoice_url ? `<a href="${r.invoice_url}" target="_blank">🧾 Xem</a>` : '—';
     return `<tr><td>${r.date||''}</td><td>${r.chemical||''}</td><td>${r.quantity||''} ${r.unit||''}</td><td>${r.supplier||''}</td><td>${invoiceLink}</td><td>${r.note||''}</td></tr>`;
   }).join('') || '<tr><td colspan="6" style="color:var(--gray);">Chưa có dữ liệu.</td></tr>';
