@@ -315,7 +315,7 @@
       <div style="overflow-x:auto;"><table><thead><tr><th>Chỉ tiêu</th><th id="summaryColCurrent">Hôm nay</th><th id="summaryColPrevious">Hôm qua</th><th>Chênh lệch</th><th>%</th></tr></thead><tbody id="summaryBody"></tbody></table></div>
     </div>
     <div class="panel eq" id="panel-p6">
-      <h3>LƯU LƯỢNG RO-A & RO-B
+      <h3>LƯU LƯỢNG UF-A/UF-B & RO-A/RO-B
         <select id="lineContribViewMode" onchange="renderLineContribution()" style="background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:10px;padding:3px 6px;">
           <option value="ca">Theo ca</option>
           <option value="ngay" selected>Theo ngày</option>
@@ -564,6 +564,15 @@
             <input type="number" step="1" id="ef_pumpyy" placeholder="VD: 380" oninput="this.value=this.value?Math.round(this.value):this.value;">
             <input type="file" accept="image/*" capture="environment" id="ef_photo_pumpyy" onchange="previewPhoto('ef_photo_pumpyy','preview_pumpyy')" style="margin-top:6px;font-size:10.5px;">
             <img id="preview_pumpyy" style="display:none;max-width:110px;border-radius:8px;margin-top:6px;border:1px solid var(--border);">
+          </div>
+        </div>
+
+        <div class="ef-detail-group"><h5>Lưu lượng UF-A / UF-B <span style="font-size:9px;color:var(--gray2);font-weight:400;">— tự tính = m³/h × số giờ ca (chọn ở ô Nước sạch RO bên trên)</span></h5>
+          <div class="ef-grid">
+            <div><label>Nước sạch UF-A (m³/h)</label><input type="number" id="ef_uf_a_rate" oninput="autoCalcUFAB()"></div>
+            <div><label>Nước sạch UF-B (m³/h)</label><input type="number" id="ef_uf_b_rate" oninput="autoCalcUFAB()"></div>
+            <div><label>Nước sạch UF-A (m³)</label><input type="number" id="ef_uf_a" readonly style="opacity:.85;" placeholder="Tự tính"></div>
+            <div><label>Nước sạch UF-B (m³)</label><input type="number" id="ef_uf_b" readonly style="opacity:.85;" placeholder="Tự tính"></div>
           </div>
         </div>
 
@@ -963,9 +972,21 @@ function autoCalcNuocSachRO(){
   const bVal = bEl && bEl.value !== '' ? parseFloat(bEl.value) : null;
   const soGio = parseFloat(document.getElementById('ef_ca_hours')?.value || '12');
   const efRo = document.getElementById('ef_ro');
-  if(aVal===null && bVal===null){ if(efRo) efRo.value=''; return; }
-  const total = ((aVal||0) + (bVal||0)) * soGio;
-  if(efRo) efRo.value = Math.round(total);
+  if(aVal===null && bVal===null){ if(efRo) efRo.value=''; } else {
+    const total = ((aVal||0) + (bVal||0)) * soGio;
+    if(efRo) efRo.value = Math.round(total);
+  }
+  autoCalcUFAB();
+}
+
+function autoCalcUFAB(){
+  const soGio = parseFloat(document.getElementById('ef_ca_hours')?.value || '12');
+  const ufARate = document.getElementById('ef_uf_a_rate')?.value;
+  const ufBRate = document.getElementById('ef_uf_b_rate')?.value;
+  const ufAEl = document.getElementById('ef_uf_a');
+  const ufBEl = document.getElementById('ef_uf_b');
+  if(ufAEl) ufAEl.value = ufARate!=='' ? Math.round(parseFloat(ufARate)*soGio) : '';
+  if(ufBEl) ufBEl.value = ufBRate!=='' ? Math.round(parseFloat(ufBRate)*soGio) : '';
 }
 
 function updateShiftColumns(){
@@ -1522,6 +1543,7 @@ function clearEntryForm(){
     document.getElementById(id).value = '';
   });
   document.getElementById('ef_ca_hours').value = '12';
+  ['ef_uf_a_rate','ef_uf_b_rate','ef_uf_a','ef_uf_b'].forEach(id=>{ document.getElementById(id).value=''; });
   document.getElementById('ef_notes').value = '';
   document.querySelectorAll('#ef_tasks input[type=checkbox]').forEach(cb=>cb.checked=false);
   document.getElementById('ef_date').value = new Date().toISOString().slice(0,10);
@@ -1564,6 +1586,8 @@ async function saveEntry(){
     fullname: currentUser ? currentUser.fullname : '',
     influent_m3: document.getElementById('ef_influent').value,
     ro_permeate_m3: document.getElementById('ef_ro').value,
+    uf_a_m3: document.getElementById('ef_uf_a').value,
+    uf_b_m3: document.getElementById('ef_uf_b').value,
     pump_to_yy_m3: document.getElementById('ef_pumpyy').value,
     ph_ro: avgRoAB('ph'),
     tds_ro: avgRoAB('tds'),
@@ -2344,6 +2368,8 @@ function renderLineContribution(){
   }
   const roAVals = labels.map(l=> Math.round(splitRoAB(b.groups[l]||[]).roA));
   const roBVals = labels.map(l=> Math.round(splitRoAB(b.groups[l]||[]).roB));
+  const ufAVals = labels.map(l=> sumField(b.groups[l]||[], 'uf_a_m3'));
+  const ufBVals = labels.map(l=> sumField(b.groups[l]||[], 'uf_b_m3'));
 
   if(charts.lineContribChart) charts.lineContribChart.destroy();
   const canvas = document.getElementById('lineContribChart');
@@ -2351,6 +2377,8 @@ function renderLineContribution(){
   charts.lineContribChart = new Chart(canvas, {
     type:'bar',
     data:{labels, datasets:[
+      {label:'Nước sạch UF-A (m³)', data:ufAVals, backgroundColor:'#3ecf8e', borderRadius:4},
+      {label:'Nước sạch UF-B (m³)', data:ufBVals, backgroundColor:'#8ee6b8', borderRadius:4},
       {label:'Nước sạch RO-A (m³)', data:roAVals, backgroundColor:'#f5811f', borderRadius:4},
       {label:'Nước sạch RO-B (m³)', data:roBVals, backgroundColor:'#4fc3f7', borderRadius:4}
     ]},
