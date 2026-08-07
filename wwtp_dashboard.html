@@ -438,6 +438,7 @@
     </div>
 
     <div class="panel wide" id="panel-pAlerts"><h3>CẢNH BÁO HỆ THỐNG</h3><div id="alertsList"></div></div>
+    <div class="panel wide" id="panel-pIncidents"><h3>🚨 BÁO CÁO SỰ CỐ TỪ CA VẬN HÀNH</h3><div id="incidentsList"></div></div>
     <div class="panel wide" id="panel-pCIP">
       <h3>THEO DÕI CIP (VỆ SINH HÓA CHẤT) — UF & RO</h3>
       <div class="ef-row">
@@ -508,48 +509,68 @@
         <h4>💧 Lưu lượng nước (số chính, bắt buộc nhập) <span style="font-size:9.5px;color:var(--gray2);font-weight:400;">— tự gõ số, kèm chụp ảnh đồng hồ để lưu làm bằng chứng</span></h4>
         <div class="ef-grid">
           <div>
-            <label>Nước thải đầu vào (m³)</label>
+            <label>Nước thải đầu vào (m³) <span style="font-size:9px;color:var(--gray2);">— số hiển thị trên PLC cuối ca</span></label>
             <input type="number" id="ef_influent" placeholder="VD: 600">
             <input type="file" accept="image/*" capture="environment" id="ef_photo_influent" onchange="previewPhoto('ef_photo_influent','preview_influent')" style="margin-top:6px;font-size:10.5px;">
             <img id="preview_influent" style="display:none;max-width:110px;border-radius:8px;margin-top:6px;border:1px solid var(--border);">
           </div>
           <div>
-            <label>Nước sạch RO (m³)</label>
-            <input type="number" id="ef_ro" placeholder="VD: 400">
-            <input type="file" accept="image/*" capture="environment" id="ef_photo_ro" onchange="previewPhoto('ef_photo_ro','preview_ro')" style="margin-top:6px;font-size:10.5px;">
-            <img id="preview_ro" style="display:none;max-width:110px;border-radius:8px;margin-top:6px;border:1px solid var(--border);">
+            <label>Nước sạch RO (m³) <span style="font-size:9px;color:var(--gray2);">— tự tính = (RO A+RO B m³/h) × số giờ ca</span></label>
+            <input type="number" id="ef_ro" placeholder="Tự tính từ chi tiết RO A/B bên dưới" readonly style="opacity:.85;">
+            <div class="ef-row" style="margin:6px 0 0;">
+              <label style="font-size:10px;">Số giờ / ca</label>
+              <select id="ef_ca_hours" onchange="autoCalcNuocSachRO()" style="background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:11px;padding:3px 6px;">
+                <option value="12" selected>12 giờ</option>
+                <option value="8">8 giờ</option>
+              </select>
+            </div>
           </div>
-          <div><label>Nước bơm cho YY (m³)</label><input type="number" id="ef_pumpyy" placeholder="VD: 380"></div>
+          <div>
+            <label>Nước bơm cho YY (m³) <span style="font-size:9px;color:var(--gray2);">— chỉ nhập khi đủ chỉ tiêu theo yêu cầu QL, kèm ảnh</span></label>
+            <input type="number" id="ef_pumpyy" placeholder="VD: 380">
+            <input type="file" accept="image/*" capture="environment" id="ef_photo_pumpyy" onchange="previewPhoto('ef_photo_pumpyy','preview_pumpyy')" style="margin-top:6px;font-size:10.5px;">
+            <img id="preview_pumpyy" style="display:none;max-width:110px;border-radius:8px;margin-top:6px;border:1px solid var(--border);">
+          </div>
         </div>
 
-        <h4>🧪 Chất lượng nước RO (đo tại đầu ra RO)</h4>
-        <div class="ef-grid">
-          <div><label>pH</label><input type="number" step="0.1" id="ef_ph" placeholder="VD: 6.8"></div>
-          <div><label>TDS (ppm)</label><input type="number" id="ef_tds" placeholder="VD: 58"></div>
-          <div><label>ORP (mV)</label><input type="number" id="ef_orp" placeholder="VD: 245"></div>
-          <div><label>Độ màu (Pt-Co)</label><input type="number" id="ef_color" placeholder="VD: 12"></div>
-          <div><label>Độ đục (NTU)</label><input type="number" id="ef_turbidity" placeholder="VD: 5"></div>
-        </div>
 
-        <p style="font-size:10px;color:var(--gray2);margin:2px 0 0;">Bấm mở 2 mục bên dưới để ghi chi tiết từng điểm đo (Bể lắng, TMF, Lọc UF, Lọc RO...) và thông số bơm/áp suất RO A-B.</p>
+        <p style="font-size:10px;color:var(--gray2);margin:2px 0 0;">Bấm mở các mục bên dưới để ghi chi tiết từng điểm đo (Bể lắng, TMF, Lọc UF, Lọc RO...) và thông số bơm/áp suất RO A-B. Chỉ số pH/TDS/ORP đầu ra RO trên dashboard sẽ tự tính trung bình từ chi tiết Lọc RO-A & Lọc RO-B bên dưới, không cần nhập riêng.</p>
 
-        <details class="ef-detail" open><summary>📋 Chi tiết pH / TDS / ORP theo từng điểm</summary>
+        <details class="ef-detail" open><summary>📋 Chi tiết pH / TDS / ORP theo từng điểm (đo mỗi ca)</summary>
           <div id="detailPhTdsOrp"></div>
+        </details>
+
+        <details class="ef-detail"><summary>🎨 Độ màu / Độ đục / COD / SDI <span style="font-size:9.5px;color:var(--gray2);font-weight:400;">— chỉ đo 1 tuần 2 lần, không cần mở mỗi ca</span></summary>
+          <div id="detailWaterQualityWeekly"></div>
         </details>
 
         <details class="ef-detail" open><summary>⚙️ Chi tiết thông số RO A & RO B</summary>
           <div id="detailRoAB"></div>
         </details>
 
-        <h4>Hóa chất sử dụng trong ca (lít)</h4>
+        <h4>Hóa chất sử dụng trong ca <span style="font-size:9.5px;color:var(--gray2);font-weight:400;">(lít — PAC/PAM tự cộng tổng từ chi tiết bên dưới)</span></h4>
         <div class="ef-grid">
-          <div><label>PAC 10%</label><input type="number" id="ef_pac"></div>
-          <div><label>Polymer 0.05%</label><input type="number" id="ef_polymer"></div>
+          <div><label>PAC 10% — tổng</label><input type="number" id="ef_pac" readonly style="opacity:.85;" placeholder="Tự tính"></div>
+          <div><label>Polymer (PAM) 0.05% — tổng</label><input type="number" id="ef_polymer" readonly style="opacity:.85;" placeholder="Tự tính"></div>
           <div><label>NaOH 10%</label><input type="number" id="ef_naoh"></div>
           <div><label>Javen 10%</label><input type="number" id="ef_javen"></div>
           <div><label>HCl 10%</label><input type="number" id="ef_hcl"></div>
           <div><label>Citric Acid</label><input type="number" id="ef_citric"></div>
           <div><label>Genesys LS (chống cáu cặn)</label><input type="number" id="ef_genesys"></div>
+        </div>
+        <div class="ef-detail-group"><h5>Chi tiết PAC theo từng bể</h5>
+          <div class="ef-grid">
+            <div><label>PAC cho bể lắng 1</label><input type="number" class="chem-detail-input" id="ef_pac_belang1" oninput="autoCalcChemTotals()"></div>
+            <div><label>PAC cho bể lắng 2-A</label><input type="number" class="chem-detail-input" id="ef_pac_belang2a" oninput="autoCalcChemTotals()"></div>
+            <div><label>PAC cho bể lắng 2-B</label><input type="number" class="chem-detail-input" id="ef_pac_belang2b" oninput="autoCalcChemTotals()"></div>
+          </div>
+        </div>
+        <div class="ef-detail-group"><h5>Chi tiết PAM (Polymer) theo từng bể</h5>
+          <div class="ef-grid">
+            <div><label>PAM cho bể lắng 1</label><input type="number" class="chem-detail-input" id="ef_pam_belang1" oninput="autoCalcChemTotals()"></div>
+            <div><label>PAM cho bể lắng 2-A</label><input type="number" class="chem-detail-input" id="ef_pam_belang2a" oninput="autoCalcChemTotals()"></div>
+            <div><label>PAM cho bể lắng 2-B</label><input type="number" class="chem-detail-input" id="ef_pam_belang2b" oninput="autoCalcChemTotals()"></div>
+          </div>
         </div>
 
         <h4>🧽 Vệ sinh CIP</h4>
@@ -689,7 +710,7 @@ function kpiIconHtml(k){ return KPI_ICONS[k.id] || `<span style="font-size:17px;
 
 /* ================= VIEW MODE (Ca/Ngày/Tuần/Tháng/Năm/Khoảng thời gian) ================= */
 /* ================= NAVIGATION ================= */
-const ALL_PANEL_IDS = ['p1','p2','p4','p5','p6','p7','p8','p9','p10','p11','p12','pTrainCharts','pChemUsage','pChemInventory','pChemStockIn','pChemDose','pChemReceive','pAlerts','pSettings','pDataEntry','pCIP'];
+const ALL_PANEL_IDS = ['p1','p2','p4','p5','p6','p7','p8','p9','p10','p11','p12','pTrainCharts','pChemUsage','pChemInventory','pChemStockIn','pChemDose','pChemReceive','pAlerts','pIncidents','pSettings','pDataEntry','pCIP'];
 const PAGE_ICON = {overview:'🏠',nhap_lieu:'📝',nhap_hoa_chat:'🧴',baocao_vanhanh:'📊',luu_luong:'💧',hoa_chat:'🧴',chat_luong:'🧪',xu_huong:'📈',ke_hoach:'🎯',chenh_lech:'🔀',baocao:'📦',canh_bao:'🔔',cip:'🧽',cai_dat:'⚡'};
 const PAGES = {
   overview:       ['p5','p1','p4','p9','p12','p6','pTrainCharts'],
@@ -703,7 +724,7 @@ const PAGES = {
   ke_hoach:       ['p11','p5'],
   chenh_lech:     ['p7','p5'],
   baocao:         ['pChemUsage','pChemInventory','pChemStockIn','pChemDose'],
-  canh_bao:       ['pAlerts'],
+  canh_bao:       ['pAlerts','pIncidents'],
   cip:            ['pCIP'],
   cai_dat:        ['pSettings']
 };
@@ -883,6 +904,17 @@ function buildRoGroup(letter){
   return `<div class="ef-detail-group"><h5>Hệ RO ${letter}</h5><table class="ef-detail-table"><thead><tr><th style="text-align:left;">Thông số</th><th class="col-sang">Sáng</th><th class="col-toi">Tối</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
+function autoCalcChemTotals(){
+  const pac1 = parseFloat(document.getElementById('ef_pac_belang1')?.value) || 0;
+  const pac2a = parseFloat(document.getElementById('ef_pac_belang2a')?.value) || 0;
+  const pac2b = parseFloat(document.getElementById('ef_pac_belang2b')?.value) || 0;
+  const pam1 = parseFloat(document.getElementById('ef_pam_belang1')?.value) || 0;
+  const pam2a = parseFloat(document.getElementById('ef_pam_belang2a')?.value) || 0;
+  const pam2b = parseFloat(document.getElementById('ef_pam_belang2b')?.value) || 0;
+  document.getElementById('ef_pac').value = Math.round((pac1+pac2a+pac2b)*10)/10;
+  document.getElementById('ef_polymer').value = Math.round((pam1+pam2a+pam2b)*10)/10;
+}
+
 function autoCalcNuocSachRO(){
   const shift = document.getElementById('ef_shift')?.value || 'Ca ngày';
   const suf = shift.indexOf('tối')>-1 ? 'toi' : 'sang';
@@ -890,11 +922,11 @@ function autoCalcNuocSachRO(){
   const bEl = document.getElementById(`d_nuocsach_rob_${suf}`);
   const aVal = aEl && aEl.value !== '' ? parseFloat(aEl.value) : null;
   const bVal = bEl && bEl.value !== '' ? parseFloat(bEl.value) : null;
-  if(aVal===null && bVal===null) return; // chua nhap gi thi khong dong gi ca
-  const SO_GIO_MOI_CA = 12; // Ca ngay 7h-19h va Ca toi 19h-7h deu la 12 gio
-  const total = ((aVal||0) + (bVal||0)) * SO_GIO_MOI_CA;
+  const soGio = parseFloat(document.getElementById('ef_ca_hours')?.value || '12');
   const efRo = document.getElementById('ef_ro');
-  if(efRo) efRo.value = total;
+  if(aVal===null && bVal===null){ if(efRo) efRo.value=''; return; }
+  const total = ((aVal||0) + (bVal||0)) * soGio;
+  if(efRo) efRo.value = Math.round(total*10)/10;
 }
 
 function updateShiftColumns(){
@@ -910,7 +942,11 @@ function buildDetailForms(){
     phTdsOrp.innerHTML =
       `<div class="ef-detail-group"><h5>pH</h5>${buildPointTable('ph', PH_POINTS)}</div>` +
       `<div class="ef-detail-group"><h5>TDS (ppm)</h5>${buildPointTable('tds', TDS_POINTS)}</div>` +
-      `<div class="ef-detail-group"><h5>ORP (mV)</h5>${buildPointTable('orp', ORP_POINTS)}</div>` +
+      `<div class="ef-detail-group"><h5>ORP (mV)</h5>${buildPointTable('orp', ORP_POINTS)}</div>`;
+  }
+  const wq = document.getElementById('detailWaterQualityWeekly');
+  if(wq){
+    wq.innerHTML =
       `<div class="ef-detail-group"><h5>Độ màu (Pt-Co)</h5>${buildPointTable('mau', COLOR_POINTS)}</div>` +
       `<div class="ef-detail-group"><h5>Độ đục (NTU)</h5>${buildPointTable('duc', TURBIDITY_POINTS)}</div>` +
       `<div class="ef-detail-group"><h5>COD (mg/L)</h5>${buildPointTable('cod', COD_POINTS)}</div>` +
@@ -1445,17 +1481,19 @@ function resizeImageFile(file, maxWidth){
 }
 
 function clearEntryForm(){
-  ['ef_influent','ef_ro','ef_pumpyy','ef_ph','ef_tds','ef_orp','ef_color','ef_turbidity','ef_pac','ef_polymer','ef_naoh','ef_javen','ef_hcl','ef_citric','ef_genesys'].forEach(id=>{
+  ['ef_influent','ef_ro','ef_pumpyy','ef_pac','ef_polymer','ef_naoh','ef_javen','ef_hcl','ef_citric','ef_genesys',
+   'ef_pac_belang1','ef_pac_belang2a','ef_pac_belang2b','ef_pam_belang1','ef_pam_belang2a','ef_pam_belang2b'].forEach(id=>{
     document.getElementById(id).value = '';
   });
+  document.getElementById('ef_ca_hours').value = '12';
   document.getElementById('ef_notes').value = '';
   document.querySelectorAll('#ef_tasks input[type=checkbox]').forEach(cb=>cb.checked=false);
   document.getElementById('ef_date').value = new Date().toISOString().slice(0,10);
   document.getElementById('ef_msg').textContent = '';
   document.getElementById('ef_photo_influent').value = '';
-  document.getElementById('ef_photo_ro').value = '';
+  document.getElementById('ef_photo_pumpyy').value = '';
   document.getElementById('preview_influent').style.display = 'none';
-  document.getElementById('preview_ro').style.display = 'none';
+  document.getElementById('preview_pumpyy').style.display = 'none';
   clearDetailFields();
   clearTaskDetails();
 }
@@ -1463,29 +1501,37 @@ function clearEntryForm(){
 async function saveEntry(){
   const msg = document.getElementById('ef_msg');
   const photoInfluentFile = document.getElementById('ef_photo_influent').files[0];
-  const photoRoFile = document.getElementById('ef_photo_ro').files[0];
+  const photoPumpyyFile = document.getElementById('ef_photo_pumpyy').files[0];
   const photoIncidentFile = document.getElementById('ef_photo_incident').files[0];
-  let photoInfluentB64 = '', photoRoB64 = '', photoIncidentB64 = '';
+  let photoInfluentB64 = '', photoPumpyyB64 = '', photoIncidentB64 = '';
   msg.style.color = 'var(--gray)'; msg.textContent = 'Đang xử lý...';
   try{
     if(photoInfluentFile) photoInfluentB64 = await resizeImageFile(photoInfluentFile, 1000);
-    if(photoRoFile) photoRoB64 = await resizeImageFile(photoRoFile, 1000);
+    if(photoPumpyyFile) photoPumpyyB64 = await resizeImageFile(photoPumpyyFile, 1000);
     if(photoIncidentFile) photoIncidentB64 = await resizeImageFile(photoIncidentFile, 1000);
   }catch(e){ /* ảnh lỗi thì bỏ qua, không chặn lưu số liệu */ }
 
+  // pH/TDS/ORP dau ra RO khong con nhap tay - tu tinh trung binh tu Loc RO-A & Loc RO-B trong chi tiet
+  const shift = document.getElementById('ef_shift').value;
+  const suf = shift.indexOf('tối')>-1 ? 'toi' : 'sang';
+  function avgRoAB(prefix){
+    const a = parseFloat(document.getElementById(`d_${prefix}_loc_ro_a_${suf}`)?.value);
+    const b = parseFloat(document.getElementById(`d_${prefix}_loc_ro_b_${suf}`)?.value);
+    const vals = [a,b].filter(v=>!isNaN(v));
+    return vals.length ? (vals.reduce((x,y)=>x+y,0)/vals.length).toFixed(2) : '';
+  }
+
   const entry = {
     date: document.getElementById('ef_date').value,
-    shift: document.getElementById('ef_shift').value,
+    shift: shift,
     username: currentUser ? currentUser.username : '',
     fullname: currentUser ? currentUser.fullname : '',
     influent_m3: document.getElementById('ef_influent').value,
     ro_permeate_m3: document.getElementById('ef_ro').value,
     pump_to_yy_m3: document.getElementById('ef_pumpyy').value,
-    ph_ro: document.getElementById('ef_ph').value,
-    tds_ro: document.getElementById('ef_tds').value,
-    orp_ro: document.getElementById('ef_orp').value,
-    color_ro: document.getElementById('ef_color').value,
-    turbidity_ro: document.getElementById('ef_turbidity').value,
+    ph_ro: avgRoAB('ph'),
+    tds_ro: avgRoAB('tds'),
+    orp_ro: avgRoAB('orp'),
     chem_pac: document.getElementById('ef_pac').value,
     chem_polymer: document.getElementById('ef_polymer').value,
     chem_naoh: document.getElementById('ef_naoh').value,
@@ -1493,16 +1539,32 @@ async function saveEntry(){
     chem_hcl: document.getElementById('ef_hcl').value,
     chem_citric: document.getElementById('ef_citric').value,
     chem_genesys: document.getElementById('ef_genesys').value,
+    pac_be_lang_1: document.getElementById('ef_pac_belang1').value,
+    pac_be_lang_2a: document.getElementById('ef_pac_belang2a').value,
+    pac_be_lang_2b: document.getElementById('ef_pac_belang2b').value,
+    pam_be_lang_1: document.getElementById('ef_pam_belang1').value,
+    pam_be_lang_2a: document.getElementById('ef_pam_belang2a').value,
+    pam_be_lang_2b: document.getElementById('ef_pam_belang2b').value,
     tasks_done: collectTasksDone(),
     notes: document.getElementById('ef_notes').value,
     tasks_detail_json: collectTasksDetailJSON(),
     has_incident: document.getElementById('task_incident')?.checked ? 'Có' : '',
     incident_desc: document.getElementById('ef_incident_desc').value,
     photo_influent_base64: photoInfluentB64,
-    photo_ro_base64: photoRoB64,
+    photo_pumpyy_base64: photoPumpyyB64,
     photo_incident_base64: photoIncidentB64
   };
-  Object.assign(entry, collectDetailFields()); // gop tung cot chi tiet (pH/TDS/ORP/RO A-B...) thang vao entry
+  // color_ro/turbidity_ro: chi co khi tuan do co so lieu Loc RO-A/B trong cum "Do mau/Do duc..." (do 1 tuan 2 lan)
+  const colA = parseFloat(document.getElementById(`d_mau_loc_ro_a_${suf}`)?.value);
+  const colB = parseFloat(document.getElementById(`d_mau_loc_ro_b_${suf}`)?.value);
+  const colVals = [colA,colB].filter(v=>!isNaN(v));
+  if(colVals.length) entry.color_ro = (colVals.reduce((x,y)=>x+y,0)/colVals.length).toFixed(1);
+  const ducA = parseFloat(document.getElementById(`d_duc_loc_ro_a_${suf}`)?.value);
+  const ducB = parseFloat(document.getElementById(`d_duc_loc_ro_b_${suf}`)?.value);
+  const ducVals = [ducA,ducB].filter(v=>!isNaN(v));
+  if(ducVals.length) entry.turbidity_ro = (ducVals.reduce((x,y)=>x+y,0)/ducVals.length).toFixed(1);
+
+  Object.assign(entry, collectDetailFields()); // gop tung cot chi tiet (pH/TDS/ORP/Mau/Duc/COD/SDI/RO A-B...) thang vao entry
   if(!entry.date || !entry.shift){ msg.style.color='var(--red)'; msg.textContent='Vui lòng chọn ngày và ca.'; return; }
 
   if(isApiConfigured() && currentUser && currentUser.username!=='demo'){
@@ -1571,9 +1633,29 @@ function buildAlerts(d){
 function renderAlerts(d){
   const alerts = buildAlerts(d);
   document.getElementById('alertsList').innerHTML = alerts.map(a=>`<div class="alert-item ${a.level}">${a.text}</div>`).join('');
-  const hasWarning = alerts.some(a=>a.level!=='ok');
+  const incidents = (d.dailyEntries||[]).filter(e=>e.has_incident==='Có');
+  const hasWarning = alerts.some(a=>a.level!=='ok') || incidents.length>0;
   const badge = document.getElementById('alertBadge');
   if(badge) badge.style.display = hasWarning ? 'inline-block' : 'none';
+  renderIncidents(incidents);
+}
+
+function renderIncidents(incidents){
+  const el = document.getElementById('incidentsList');
+  if(!el) return;
+  if(!incidents || incidents.length===0){
+    el.innerHTML = '<div style="color:var(--gray);font-size:11px;">Không có báo cáo sự cố nào.</div>';
+    return;
+  }
+  const sorted = incidents.slice().sort((a,b)=> new Date(b.date) - new Date(a.date));
+  el.innerHTML = sorted.map(e=>{
+    const photo = e.photo_incident_url ? `<a href="${e.photo_incident_url}" target="_blank">🖼️ Xem ảnh sự cố</a>` : '<span style="color:var(--gray);">(không có ảnh)</span>';
+    return `<div class="alert-item danger" style="margin-bottom:8px;">
+      <b>${e.date||''} — ${e.shift||''}</b> · ${e.fullname||e.username||''}<br>
+      <span style="color:var(--gray);">${e.incident_desc||'(không có mô tả)'}</span><br>
+      ${photo}
+    </div>`;
+  }).join('');
 }
 
 async function changePasswordUI(){
