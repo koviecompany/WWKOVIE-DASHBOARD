@@ -286,7 +286,7 @@
       <div class="legend" id="legend1"></div>
     </div>
     <div class="panel" id="panel-p4">
-      <h3>XU HƯỚNG TỶ LỆ RECOVERY — RO & UF (%)
+      <h3>XU HƯỚNG NƯỚC SẠCH RO & UF (m³)
         <select id="recoveryViewMode" onchange="renderEfficiencyTrend()" style="background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:10px;padding:3px 6px;">
           <option value="ca">Theo ca</option>
           <option value="ngay" selected>Theo ngày</option>
@@ -294,12 +294,25 @@
           <option value="thang">Theo tháng</option>
         </select>
       </h3>
+      <div class="ef-row" style="margin:2px 0 6px;gap:6px;">
+        <label style="font-size:9.5px;color:var(--gray2);">🤖 Cảnh báo CIP thông minh — báo khi giảm quá</label>
+        <input type="number" id="cipSmartThreshold" value="15" min="1" max="90" step="1" onchange="renderEfficiencyTrend()" style="width:48px;background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:10px;padding:3px 5px;">
+        <span style="font-size:9.5px;color:var(--gray2);">% so với trung bình gần đây</span>
+      </div>
+      <div id="cipSmartWarning" style="display:none;"></div>
       <div class="chart-wrap"><canvas id="efficiencyTrend"></canvas></div>
     </div>
 
     <div class="panel wide tall" id="panel-p5">
-      <h3>BẢNG TỔNG HỢP VẬN HÀNH (Operating Summary)</h3>
-      <div style="overflow-x:auto;"><table><thead><tr><th>Chỉ tiêu</th><th>Hôm nay</th><th>Hôm qua</th><th>Chênh lệch</th><th>%</th></tr></thead><tbody id="summaryBody"></tbody></table></div>
+      <h3 style="display:flex;align-items:center;justify-content:space-between;">
+        <span>BẢNG TỔNG HỢP VẬN HÀNH (Operating Summary)</span>
+        <span style="display:flex;align-items:center;gap:4px;">
+          <button onclick="changeSummaryDay(-1)" title="Ngày trước" style="background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:11px;padding:3px 7px;cursor:pointer;">◀</button>
+          <span id="summaryDateLabel" style="font-size:9.5px;color:var(--gray);white-space:nowrap;"></span>
+          <button onclick="changeSummaryDay(1)" title="Ngày sau" style="background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:11px;padding:3px 7px;cursor:pointer;">▶</button>
+        </span>
+      </h3>
+      <div style="overflow-x:auto;"><table><thead><tr><th>Chỉ tiêu</th><th id="summaryColCurrent">Hôm nay</th><th id="summaryColPrevious">Hôm qua</th><th>Chênh lệch</th><th>%</th></tr></thead><tbody id="summaryBody"></tbody></table></div>
     </div>
     <div class="panel eq" id="panel-p6"><h3>LƯU LƯỢNG THEO HỆ UF / RO</h3><div id="lineContribution"></div></div>
     <div class="panel" id="panel-p7"><h3>CHÊNH LỆCH CHI PHÍ HÓA CHẤT (so với kỳ trước)</h3><div class="chart-wrap"><canvas id="waterfall"></canvas></div></div>
@@ -510,7 +523,7 @@
         <div class="ef-grid">
           <div>
             <label>Nước thải đầu vào (m³) <span style="font-size:9px;color:var(--gray2);">— số hiển thị trên PLC cuối ca</span></label>
-            <input type="number" id="ef_influent" placeholder="VD: 600">
+            <input type="number" step="1" id="ef_influent" placeholder="VD: 600" oninput="this.value=this.value?Math.round(this.value):this.value;">
             <input type="file" accept="image/*" capture="environment" id="ef_photo_influent" onchange="previewPhoto('ef_photo_influent','preview_influent')" style="margin-top:6px;font-size:10.5px;">
             <img id="preview_influent" style="display:none;max-width:110px;border-radius:8px;margin-top:6px;border:1px solid var(--border);">
           </div>
@@ -527,7 +540,7 @@
           </div>
           <div id="pumpyy_block">
             <label>Nước bơm cho YY (m³) <span style="font-size:9px;color:var(--gray2);">— chỉ Ca tối nhập, khi đủ chỉ tiêu theo yêu cầu QL, kèm ảnh</span></label>
-            <input type="number" id="ef_pumpyy" placeholder="VD: 380">
+            <input type="number" step="1" id="ef_pumpyy" placeholder="VD: 380" oninput="this.value=this.value?Math.round(this.value):this.value;">
             <input type="file" accept="image/*" capture="environment" id="ef_photo_pumpyy" onchange="previewPhoto('ef_photo_pumpyy','preview_pumpyy')" style="margin-top:6px;font-size:10.5px;">
             <img id="preview_pumpyy" style="display:none;max-width:110px;border-radius:8px;margin-top:6px;border:1px solid var(--border);">
           </div>
@@ -552,24 +565,24 @@
         <div class="ef-grid">
           <div><label>PAC 10% — tổng</label><input type="number" id="ef_pac" readonly style="opacity:.85;" placeholder="Tự tính"></div>
           <div><label>Polymer (PAM) 0.05% — tổng</label><input type="number" id="ef_polymer" readonly style="opacity:.85;" placeholder="Tự tính"></div>
-          <div><label>NaOH 10%</label><input type="number" id="ef_naoh"></div>
-          <div><label>Javen 10%</label><input type="number" id="ef_javen"></div>
-          <div><label>HCl 10%</label><input type="number" id="ef_hcl"></div>
-          <div><label>Citric Acid</label><input type="number" id="ef_citric"></div>
-          <div><label>Genesys LS (chống cáu cặn)</label><input type="number" id="ef_genesys"></div>
+          <div><label>NaOH 10%</label><input type="number" step="1" id="ef_naoh" oninput="this.value=this.value?Math.round(this.value):this.value;"></div>
+          <div><label>Javen 10%</label><input type="number" step="1" id="ef_javen" oninput="this.value=this.value?Math.round(this.value):this.value;"></div>
+          <div><label>HCl 10%</label><input type="number" step="1" id="ef_hcl" oninput="this.value=this.value?Math.round(this.value):this.value;"></div>
+          <div><label>Citric Acid</label><input type="number" step="1" id="ef_citric" oninput="this.value=this.value?Math.round(this.value):this.value;"></div>
+          <div><label>Genesys LS (chống cáu cặn)</label><input type="number" step="1" id="ef_genesys" oninput="this.value=this.value?Math.round(this.value):this.value;"></div>
         </div>
         <div class="ef-detail-group"><h5>Chi tiết PAC theo từng bể</h5>
           <div class="ef-grid">
-            <div><label>PAC cho bể lắng 1</label><input type="number" class="chem-detail-input" id="ef_pac_belang1" oninput="autoCalcChemTotals()"></div>
-            <div><label>PAC cho bể lắng 2-A</label><input type="number" class="chem-detail-input" id="ef_pac_belang2a" oninput="autoCalcChemTotals()"></div>
-            <div><label>PAC cho bể lắng 2-B</label><input type="number" class="chem-detail-input" id="ef_pac_belang2b" oninput="autoCalcChemTotals()"></div>
+            <div><label>PAC cho bể lắng 1</label><input type="number" step="1" class="chem-detail-input" id="ef_pac_belang1" oninput="this.value=this.value?Math.round(this.value):this.value;autoCalcChemTotals()"></div>
+            <div><label>PAC cho bể lắng 2-A</label><input type="number" step="1" class="chem-detail-input" id="ef_pac_belang2a" oninput="this.value=this.value?Math.round(this.value):this.value;autoCalcChemTotals()"></div>
+            <div><label>PAC cho bể lắng 2-B</label><input type="number" step="1" class="chem-detail-input" id="ef_pac_belang2b" oninput="this.value=this.value?Math.round(this.value):this.value;autoCalcChemTotals()"></div>
           </div>
         </div>
         <div class="ef-detail-group"><h5>Chi tiết PAM (Polymer) theo từng bể</h5>
           <div class="ef-grid">
-            <div><label>PAM cho bể lắng 1</label><input type="number" class="chem-detail-input" id="ef_pam_belang1" oninput="autoCalcChemTotals()"></div>
-            <div><label>PAM cho bể lắng 2-A</label><input type="number" class="chem-detail-input" id="ef_pam_belang2a" oninput="autoCalcChemTotals()"></div>
-            <div><label>PAM cho bể lắng 2-B</label><input type="number" class="chem-detail-input" id="ef_pam_belang2b" oninput="autoCalcChemTotals()"></div>
+            <div><label>PAM cho bể lắng 1</label><input type="number" step="1" class="chem-detail-input" id="ef_pam_belang1" oninput="this.value=this.value?Math.round(this.value):this.value;autoCalcChemTotals()"></div>
+            <div><label>PAM cho bể lắng 2-A</label><input type="number" step="1" class="chem-detail-input" id="ef_pam_belang2a" oninput="this.value=this.value?Math.round(this.value):this.value;autoCalcChemTotals()"></div>
+            <div><label>PAM cho bể lắng 2-B</label><input type="number" step="1" class="chem-detail-input" id="ef_pam_belang2b" oninput="this.value=this.value?Math.round(this.value):this.value;autoCalcChemTotals()"></div>
           </div>
         </div>
 
@@ -704,7 +717,9 @@ const KPI_ICONS = {
   ph: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2v6.2L4.3 17a2.3 2.3 0 0 0 2 3.4h11.4a2.3 2.3 0 0 0 2-3.4L15 8.2V2"/><line x1="9" y1="2" x2="15" y2="2"/><line x1="7.5" y1="14" x2="16.5" y2="14"/></svg>`,
   tds: `<svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="6" cy="7" r="2.1" fill="currentColor" stroke="none"/><circle cx="18" cy="7" r="2.1" fill="currentColor" stroke="none"/><circle cx="12" cy="18" r="2.1" fill="currentColor" stroke="none"/><line x1="7.3" y1="8.6" x2="10.8" y2="16"/><line x1="16.7" y1="8.6" x2="13.2" y2="16"/><line x1="8.1" y1="7" x2="15.9" y2="7"/></svg>`,
   orp: `<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="13 2 4 14 11 14 10 22 20 9 13 9 13 2"/></svg>`,
-  color: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18c1.2 0 1.7-.8 1.7-1.6 0-.4-.2-.8-.4-1.1-.2-.3-.4-.6-.4-1 0-.8.6-1.3 1.3-1.3h1.6A4.8 4.8 0 0 0 21 11.2C21 6.7 17 3 12 3z"/><circle cx="7.3" cy="10.5" r="1.15" fill="currentColor" stroke="none"/><circle cx="9.8" cy="7" r="1.15" fill="currentColor" stroke="none"/><circle cx="14.6" cy="7.3" r="1.15" fill="currentColor" stroke="none"/><circle cx="16.7" cy="11" r="1.15" fill="currentColor" stroke="none"/></svg>`
+  color: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18c1.2 0 1.7-.8 1.7-1.6 0-.4-.2-.8-.4-1.1-.2-.3-.4-.6-.4-1 0-.8.6-1.3 1.3-1.3h1.6A4.8 4.8 0 0 0 21 11.2C21 6.7 17 3 12 3z"/><circle cx="7.3" cy="10.5" r="1.15" fill="currentColor" stroke="none"/><circle cx="9.8" cy="7" r="1.15" fill="currentColor" stroke="none"/><circle cx="14.6" cy="7.3" r="1.15" fill="currentColor" stroke="none"/><circle cx="16.7" cy="11" r="1.15" fill="currentColor" stroke="none"/></svg>`,
+  turbidity: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 15c2-1.5 4-1.5 6 0s4 1.5 6 0 4-1.5 6 0"/><path d="M3 19c2-1.5 4-1.5 6 0s4 1.5 6 0 4-1.5 6 0"/><path d="M12 3.5s4.5 5.3 4.5 8.6a4.5 4.5 0 1 1-9 0C7.5 8.8 12 3.5 12 3.5z"/></svg>`,
+  buffer_ro: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="7" width="14" height="14" rx="2"/><path d="M9 7V4a3 3 0 0 1 6 0v3"/><line x1="9" y1="13" x2="15" y2="13"/></svg>`
 };
 function kpiIconHtml(k){ return KPI_ICONS[k.id] || `<span style="font-size:17px;">${k.icon||'📊'}</span>`; }
 
@@ -877,11 +892,13 @@ function slugify(s){
 }
 
 function buildPointTable(prefix, points){
+  const isInt = (prefix==='tds' || prefix==='orp'); // TDS/ORP lam tron so nguyen theo yeu cau
+  const step = isInt ? '1' : '0.01';
   const rows = points.map(p=>{
     const slug = prefix+'_'+slugify(p);
     return `<tr><td class="label-col">${p}</td>
-      <td class="col-sang"><input type="number" step="0.01" id="d_${slug}_sang" class="detail-input" placeholder="Sáng"></td>
-      <td class="col-toi"><input type="number" step="0.01" id="d_${slug}_toi" class="detail-input" placeholder="Tối"></td></tr>`;
+      <td class="col-sang"><input type="number" step="${step}" id="d_${slug}_sang" class="detail-input" placeholder="Sáng" oninput="if(${isInt})this.value=this.value?Math.round(this.value):this.value;"></td>
+      <td class="col-toi"><input type="number" step="${step}" id="d_${slug}_toi" class="detail-input" placeholder="Tối" oninput="if(${isInt})this.value=this.value?Math.round(this.value):this.value;"></td></tr>`;
   }).join('');
   return `<table class="ef-detail-table"><thead><tr><th style="text-align:left;">Điểm đo</th><th class="col-sang">Sáng</th><th class="col-toi">Tối</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
@@ -912,8 +929,8 @@ function autoCalcChemTotals(){
   const pam1 = parseFloat(document.getElementById('ef_pam_belang1')?.value) || 0;
   const pam2a = parseFloat(document.getElementById('ef_pam_belang2a')?.value) || 0;
   const pam2b = parseFloat(document.getElementById('ef_pam_belang2b')?.value) || 0;
-  document.getElementById('ef_pac').value = Math.round((pac1+pac2a+pac2b)*10)/10;
-  document.getElementById('ef_polymer').value = Math.round((pam1+pam2a+pam2b)*10)/10;
+  document.getElementById('ef_pac').value = Math.round(pac1+pac2a+pac2b);
+  document.getElementById('ef_polymer').value = Math.round(pam1+pam2a+pam2b);
 }
 
 function autoCalcNuocSachRO(){
@@ -927,7 +944,7 @@ function autoCalcNuocSachRO(){
   const efRo = document.getElementById('ef_ro');
   if(aVal===null && bVal===null){ if(efRo) efRo.value=''; return; }
   const total = ((aVal||0) + (bVal||0)) * soGio;
-  if(efRo) efRo.value = Math.round(total*10)/10;
+  if(efRo) efRo.value = Math.round(total);
 }
 
 function updateShiftColumns(){
@@ -1893,26 +1910,53 @@ function avgField(entries, field){
 function renderEfficiencyTrend(){
   if(!lastData) return;
   const mode = document.getElementById('recoveryViewMode')?.value || 'ngay';
-  let labels, roRecovery;
+  let labels, roVals, ufVals;
   if(mode==='thang'){
     labels = (lastData.monthlyTrend||[]).map(r=>r.month);
-    roRecovery = (lastData.monthlyTrend||[]).map(r=>Number(r.recovery_pct||0));
+    roVals = (lastData.monthlyTrend||[]).map(r=>Number(r.ro_permeate_m3||0));
+    ufVals = (lastData.monthlyTrend||[]).map(r=>Number(r.uf_permeate_m3||0) || (Number(r.influent_m3||0)*(DEFAULT_UF_INPUT_PCT/100)*(1-DEFAULT_UF_REJECT_PCT/100)));
   } else {
     const b = getTimeBuckets(mode);
     labels = b.labels;
-    roRecovery = labels.map(l=>{
-      const g = b.groups[l]||[];
-      const inf = sumField(g,'influent_m3'); const ro = sumField(g,'ro_permeate_m3');
-      return inf>0 ? (ro/inf*100) : 0;
+    roVals = labels.map(l=> sumField(b.groups[l]||[], 'ro_permeate_m3'));
+    ufVals = labels.map(l=>{
+      const inf = sumField(b.groups[l]||[], 'influent_m3');
+      return inf * (DEFAULT_UF_INPUT_PCT/100) * (1-DEFAULT_UF_REJECT_PCT/100);
     });
   }
-  const ufRecovery = labels.map(()=> 100-DEFAULT_UF_REJECT_PCT);
+
+  // Canh bao CIP thong minh: so gia tri MOI NHAT voi trung binh cac gia tri truoc do, neu giam qua nguong -> canh bao
+  const threshold = parseFloat(document.getElementById('cipSmartThreshold')?.value || '15');
+  const warnBox = document.getElementById('cipSmartWarning');
+  function checkDrop(vals, label){
+    const nonZero = vals.filter(v=>v>0);
+    if(nonZero.length < 3) return null;
+    const latest = vals[vals.length-1];
+    const baseline = nonZero.slice(0, -1).reduce((a,b)=>a+b,0) / Math.max(1, nonZero.slice(0,-1).length);
+    if(baseline<=0) return null;
+    const dropPct = (baseline-latest)/baseline*100;
+    if(dropPct >= threshold) return { label, dropPct, latest, baseline };
+    return null;
+  }
+  const roDrop = checkDrop(roVals, 'Nước sạch RO');
+  const ufDrop = checkDrop(ufVals, 'Nước sạch UF');
+  const warnings = [roDrop, ufDrop].filter(Boolean);
+  if(warnings.length){
+    warnBox.style.display = 'block';
+    warnBox.innerHTML = warnings.map(w=>
+      `<div class="alert-item danger" style="margin-bottom:6px;">🔴 <b>${w.label}</b> đang giảm <b>${w.dropPct.toFixed(0)}%</b> so với trung bình gần đây (${w.latest.toFixed(0)} m³ so với ~${w.baseline.toFixed(0)} m³) — nên kiểm tra vệ sinh CIP.</div>`
+    ).join('');
+  } else {
+    warnBox.style.display = 'none';
+    warnBox.innerHTML = '';
+  }
+
   if(charts.efficiencyTrend) charts.efficiencyTrend.destroy();
   charts.efficiencyTrend = new Chart(document.getElementById('efficiencyTrend'), {
     type:'line',
     data:{labels, datasets:[
-      {label:'RO Recovery (%)', data:roRecovery, borderColor:'#f5811f', backgroundColor:'rgba(245,129,31,.15)', fill:true, tension:.35, pointRadius:3},
-      {label:'UF Recovery (%)', data:ufRecovery, borderColor:'#4fc3f7', backgroundColor:'transparent', borderDash:[5,4], tension:0, pointRadius:2}
+      {label:'Nước sạch RO (m³)', data:roVals, borderColor:'#f5811f', backgroundColor:'rgba(245,129,31,.15)', fill:true, tension:.35, pointRadius:3},
+      {label:'Nước sạch UF (m³)', data:ufVals, borderColor:'#4fc3f7', backgroundColor:'transparent', borderDash:[5,4], tension:.35, pointRadius:2}
     ]},
     options:{responsive:true,maintainAspectRatio:false, plugins:{legend:{position:'bottom',labels:{boxWidth:8,boxHeight:8,padding:8,font:{size:9.5}}}}, scales:{y:{grid:{color:'#26262a'}}, x:{grid:{display:false},ticks:{font:{size:8.5}}}}}
   });
@@ -2167,6 +2211,90 @@ function renderWaterQualityTrend(){
 }
 
 /* ================= RENDER DASHBOARD ================= */
+/* ================= BẢNG TỔNG HỢP VẬN HÀNH (tự tính theo ngày, có nút lùi/tới) ================= */
+let summaryDateOffset = 0; // 0 = hom nay, -1 = hom qua, +1 = ngay mai...
+
+function changeSummaryDay(delta){
+  summaryDateOffset += delta;
+  renderOperatingSummary();
+}
+
+function sumEntriesForDate(entries, dateStr){
+  return entries.filter(e=>e.date===dateStr);
+}
+
+function computeSummaryRow(entries){
+  const num = k => entries.reduce((a,e)=>a+(parseFloat(e[k])||0), 0);
+  const avg = k => {
+    const vals = entries.map(e=>parseFloat(e[k])).filter(v=>!isNaN(v));
+    return vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : null;
+  };
+  const influent = num('influent_m3');
+  const roPermeate = num('ro_permeate_m3');
+  const pumpYY = num('pump_to_yy_m3');
+  const recovery = influent>0 ? (roPermeate/influent*100) : null;
+  const chemFields = ['chem_pac','chem_polymer','chem_naoh','chem_javen','chem_hcl','chem_citric','chem_genesys'];
+  const totalChem = entries.reduce((a,e)=> a + chemFields.reduce((s,k)=>s+(parseFloat(e[k])||0),0), 0);
+  return {
+    influent, roPermeate, pumpYY, recovery,
+    ph: avg('ph_ro'), tds: avg('tds_ro'), orp: avg('orp_ro'),
+    color: avg('color_ro'), turbidity: avg('turbidity_ro'),
+    totalChem
+  };
+}
+
+function fmtDelta(cur, prev, decimals, suffix){
+  suffix = suffix || '';
+  if(cur===null || prev===null || isNaN(cur) || isNaN(prev)){
+    return { variance:'—', pct:'—', cls:'' };
+  }
+  const d = cur - prev;
+  const pct = prev !== 0 ? (d/Math.abs(prev)*100) : 0;
+  const arrow = d>0 ? '▲' : (d<0 ? '▼' : '');
+  const cls = d>0 ? 'up-txt' : (d<0 ? 'down-txt' : '');
+  return { variance: `${d>0?'+':''}${d.toFixed(decimals)}${suffix}`, pct: `${arrow}${Math.abs(pct).toFixed(1)}%`, cls };
+}
+
+function renderOperatingSummary(){
+  if(!lastData) return;
+  const entries = lastData.dailyEntries || [];
+  const today = new Date(); today.setDate(today.getDate() + summaryDateOffset);
+  const yesterday = new Date(today); yesterday.setDate(today.getDate()-1);
+  const curDate = today.toISOString().slice(0,10);
+  const prevDate = yesterday.toISOString().slice(0,10);
+
+  document.getElementById('summaryColCurrent').textContent = summaryDateOffset===0 ? 'Hôm nay' : dateLabel(today);
+  document.getElementById('summaryColPrevious').textContent = dateLabel(yesterday);
+  const lbl = document.getElementById('summaryDateLabel');
+  if(lbl) lbl.textContent = dateLabel(today) + (summaryDateOffset===0 ? ' (hôm nay)' : '');
+
+  const curEntries = sumEntriesForDate(entries, curDate);
+  const prevEntries = sumEntriesForDate(entries, prevDate);
+  const cur = computeSummaryRow(curEntries);
+  const prev = computeSummaryRow(prevEntries);
+
+  const rows = [
+    { label:'Tổng lưu lượng đầu vào (m³)', cur:cur.influent, prev:prev.influent, dec:0, type:'normal' },
+    { label:'Tổng nước sạch RO (m³)', cur:cur.roPermeate, prev:prev.roPermeate, dec:0, type:'normal' },
+    { label:'Nước bơm cho YY (m³)', cur:cur.pumpYY, prev:prev.pumpYY, dec:0, type:'normal' },
+    { label:'Tỷ lệ Recovery (%)', cur:cur.recovery, prev:prev.recovery, dec:1, suffix:'%', type:'total' },
+    { label:'pH RO (trung bình)', cur:cur.ph, prev:prev.ph, dec:2, type:'sub' },
+    { label:'TDS RO (ppm, trung bình)', cur:cur.tds, prev:prev.tds, dec:0, type:'sub' },
+    { label:'ORP RO (mV, trung bình)', cur:cur.orp, prev:prev.orp, dec:0, type:'sub' },
+    { label:'Độ màu RO (Pt-Co)', cur:cur.color, prev:prev.color, dec:1, type:'sub' },
+    { label:'Độ đục RO (NTU)', cur:cur.turbidity, prev:prev.turbidity, dec:1, type:'sub' },
+    { label:'Tổng hóa chất sử dụng (lít)', cur:cur.totalChem, prev:prev.totalChem, dec:0, type:'normal' },
+  ];
+
+  document.getElementById('summaryBody').innerHTML = rows.map(r=>{
+    const cls = r.type==='total'?'total':(r.type==='sub'?'sub':'');
+    const curTxt = (r.cur===null || isNaN(r.cur)) ? '—' : r.cur.toFixed(r.dec) + (r.suffix||'');
+    const prevTxt = (r.prev===null || isNaN(r.prev)) ? '—' : r.prev.toFixed(r.dec) + (r.suffix||'');
+    const delta = fmtDelta(r.cur, r.prev, r.dec, r.suffix);
+    return `<tr class="${cls}"><td>${r.label}</td><td>${curTxt}</td><td>${prevTxt}</td><td>${delta.variance}</td><td class="${delta.cls}">${delta.pct}</td></tr>`;
+  }).join('');
+}
+
 function renderDashboard(d){
   lastData = d;
   Object.values(charts).forEach(c=>c.destroy());
@@ -2175,7 +2303,18 @@ function renderDashboard(d){
   document.getElementById('dataAsOf').textContent = d.updatedAt ? new Date(d.updatedAt).toLocaleDateString('vi-VN') : '—';
 
   const kpiRow = document.getElementById('kpiRow');
-  kpiRow.innerHTML = (d.kpis||[]).map(k=>`
+  const kpiList = (d.kpis||[]).slice();
+  // Them 2 KPI tu tinh tu bao cao ca hom nay: Do duc RO, va Nuoc sach goi dau (= tong RO 2 ca - Nuoc bom cho YY)
+  const todayStr = new Date().toISOString().slice(0,10);
+  const todayEntries = (d.dailyEntries||[]).filter(e=>e.date===todayStr);
+  const todayRoTotal = todayEntries.reduce((a,e)=>a+(parseFloat(e.ro_permeate_m3)||0), 0);
+  const todayPumpYY = todayEntries.reduce((a,e)=>a+(parseFloat(e.pump_to_yy_m3)||0), 0);
+  const todayTurbidityVals = todayEntries.map(e=>parseFloat(e.turbidity_ro)).filter(v=>!isNaN(v));
+  const todayTurbidityAvg = todayTurbidityVals.length ? (todayTurbidityVals.reduce((a,b)=>a+b,0)/todayTurbidityVals.length) : null;
+  const buffer = todayRoTotal - todayPumpYY;
+  kpiList.push({ id:'turbidity', label:'ĐỘ ĐỤC RO', icon:'🌫️', value: todayTurbidityAvg!==null ? todayTurbidityAvg.toFixed(1)+' NTU' : '—', delta:'', delta_type:'up', subtext:'trung bình hôm nay' });
+  kpiList.push({ id:'buffer_ro', label:'NƯỚC SẠCH GỐI ĐẦU', icon:'🛢️', value: buffer.toFixed(0)+' m³', delta:'', delta_type: buffer>=0?'up':'down', subtext:'RO 2 ca − bơm cho YY' });
+  kpiRow.innerHTML = kpiList.map(k=>`
     <div class="kpi">
       <div class="kpi-top"><div class="kpi-icon">${kpiIconHtml(k)}</div><div class="kpi-label">${k.label}</div></div>
       <div class="kpi-value">${k.value}</div>
@@ -2201,11 +2340,7 @@ function renderDashboard(d){
 
   renderEfficiencyTrend();
 
-  document.getElementById('summaryBody').innerHTML = (d.operatingSummary||[]).map(r=>{
-    const cls = r.row_type==='total'?'total':(r.row_type==='sub'?'sub':'');
-    const varClass = String(r.variance_pct||'').indexOf('▼')>-1 ? 'down-txt':'up-txt';
-    return `<tr class="${cls}"><td>${r.parameter}</td><td>${r.current}</td><td>${r.previous}</td><td>${r.variance}</td><td class="${varClass}">${r.variance_pct}</td></tr>`;
-  }).join('');
+renderOperatingSummary();
 
   const lc = d.lineContribution||[];
   const maxPct = Math.max(...lc.map(r=>Number(r.percent)||0), 1);
