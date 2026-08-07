@@ -314,7 +314,17 @@
       </h3>
       <div style="overflow-x:auto;"><table><thead><tr><th>Chỉ tiêu</th><th id="summaryColCurrent">Hôm nay</th><th id="summaryColPrevious">Hôm qua</th><th>Chênh lệch</th><th>%</th></tr></thead><tbody id="summaryBody"></tbody></table></div>
     </div>
-    <div class="panel eq" id="panel-p6"><h3>LƯU LƯỢNG THEO HỆ UF / RO</h3><div id="lineContribution"></div></div>
+    <div class="panel eq" id="panel-p6">
+      <h3>LƯU LƯỢNG RO-A & RO-B
+        <select id="lineContribViewMode" onchange="renderLineContribution()" style="background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:10px;padding:3px 6px;">
+          <option value="ca">Theo ca</option>
+          <option value="ngay" selected>Theo ngày</option>
+          <option value="tuan">Theo tuần</option>
+          <option value="thang">Theo tháng</option>
+        </select>
+      </h3>
+      <div class="chart-wrap"><canvas id="lineContribChart"></canvas></div>
+    </div>
     <div class="panel" id="panel-p7"><h3>CHÊNH LỆCH CHI PHÍ HÓA CHẤT (so với kỳ trước)</h3><div class="chart-wrap"><canvas id="waterfall"></canvas></div></div>
 
     <div class="panel eq" id="panel-p8">
@@ -353,6 +363,7 @@
     <div class="panel full" id="panel-pTrainCharts">
       <h3>CHỈ SỐ THEO TỪNG BỂ TRONG DÂY CHUYỀN
         <select id="trainViewMode" onchange="renderTrainCharts()" style="background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:10px;padding:3px 6px;">
+          <option value="ca">Theo ca</option>
           <option value="ngay" selected>Theo ngày</option>
           <option value="tuan">Theo tuần</option>
           <option value="thang">Theo tháng</option>
@@ -374,7 +385,17 @@
       <div class="chart-wrap"><canvas id="gauge"></canvas></div>
       <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--gray);margin-top:4px;" id="complianceLine"></div>
     </div>
-    <div class="panel wide" id="panel-p12"><h3>ÁP SUẤT RO — ĐẦU VÀO & REJECT (Bar)</h3><div class="chart-wrap"><canvas id="pressureTrend"></canvas></div></div>
+    <div class="panel wide" id="panel-p12">
+      <h3>ÁP SUẤT RO — ĐẦU VÀO & REJECT (Bar)
+        <select id="pressureViewMode" onchange="renderPressureTrend()" style="background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:10px;padding:3px 6px;">
+          <option value="ca">Theo ca</option>
+          <option value="ngay" selected>Theo ngày</option>
+          <option value="tuan">Theo tuần</option>
+          <option value="thang">Theo tháng</option>
+        </select>
+      </h3>
+      <div class="chart-wrap"><canvas id="pressureTrend"></canvas></div>
+    </div>
 
     <div class="panel" id="panel-pChemUsage"><h3>SỬ DỤNG HÓA CHẤT HÔM NAY (theo loại)</h3><div class="chart-wrap"><canvas id="chemUsageChart"></canvas></div></div>
     <div class="panel" id="panel-pChemInventory"><h3>TỒN KHO HÓA CHẤT HIỆN TẠI</h3><div id="chemInventoryList"></div></div>
@@ -1053,38 +1074,33 @@ function avgDetailField(entry, fieldSlug){
 /* ================= ÁP SUẤT RO — ĐẦU VÀO & REJECT (từ chi tiết báo cáo ca) ================= */
 function renderPressureTrend(){
   if(!lastData) return;
-  const entries = (lastData.dailyEntries||[])
-    .map(e=>({...e, dt:parseDateSmart(e.date)}))
-    .filter(e=>e.dt)
-    .sort((a,b)=>a.dt-b.dt);
+  const mode = document.getElementById('pressureViewMode')?.value || 'ngay';
+  const b = getTimeBuckets(mode);
+  const labels = b.labels;
 
-  const byDate = {};
-  const order = [];
-  entries.forEach(e=>{
-    const key = dateLabel(e.dt);
-    if(!byDate[key]){ byDate[key] = {feed:[], reject:[]}; order.push(key); }
-    ['a','b'].forEach(l=>{
-      ['1','2','3'].forEach(n=>{
-        const feed = avgDetailField(e, 'apvao_ro'+l+n);
-        const rej = avgDetailField(e, 'apreject_ro'+l+n);
-        if(feed!==null) byDate[key].feed.push(feed);
-        if(rej!==null) byDate[key].reject.push(rej);
+  function avgPressureField(entries, prefix){
+    const vals = [];
+    entries.forEach(e=>{
+      ['a','b'].forEach(l=>{
+        ['1','2','3'].forEach(n=>{
+          const v = avgDetailField(e, prefix+'_ro'+l+n);
+          if(v!==null) vals.push(v);
+        });
       });
     });
-  });
-
-  const labels = order.slice(-20); // tối đa 20 điểm gần nhất cho dễ đọc
-  const feedAvg = labels.map(k=>{ const v=byDate[k].feed; return v.length ? +(v.reduce((a,b)=>a+b,0)/v.length).toFixed(2) : null; });
-  const rejectAvg = labels.map(k=>{ const v=byDate[k].reject; return v.length ? +(v.reduce((a,b)=>a+b,0)/v.length).toFixed(2) : null; });
+    return vals.length ? +(vals.reduce((a,c)=>a+c,0)/vals.length).toFixed(2) : null;
+  }
+  const feedAvg = labels.map(l=> avgPressureField(b.groups[l]||[], 'apvao'));
+  const rejectAvg = labels.map(l=> avgPressureField(b.groups[l]||[], 'apreject'));
 
   if(charts.pressureTrend) charts.pressureTrend.destroy();
   const canvas = document.getElementById('pressureTrend');
   if(!canvas) return;
   charts.pressureTrend = new Chart(canvas, {
-    type:'line',
+    type:'bar',
     data:{labels: labels.length?labels:['Chưa có dữ liệu'], datasets:[
-      {label:'Áp vào RO (TB, Bar)', data:feedAvg.length?feedAvg:[0], borderColor:'#4fc3f7', backgroundColor:'rgba(79,195,247,.12)', fill:true, tension:.35, pointRadius:3, spanGaps:true},
-      {label:'Áp Reject RO (TB, Bar)', data:rejectAvg.length?rejectAvg:[0], borderColor:'#e5484d', backgroundColor:'transparent', borderDash:[4,3], tension:.35, pointRadius:3, spanGaps:true}
+      {label:'Áp vào RO (TB, Bar)', data:feedAvg.length?feedAvg:[0], backgroundColor:'#4fc3f7', borderRadius:4},
+      {label:'Áp Reject RO (TB, Bar)', data:rejectAvg.length?rejectAvg:[0], backgroundColor:'#e5484d', borderRadius:4}
     ]},
     options:{responsive:true,maintainAspectRatio:false,
       plugins:{legend:{position:'bottom',labels:{boxWidth:8,boxHeight:8,padding:8,font:{size:9.5}}}},
@@ -2119,16 +2135,20 @@ function renderChemByMode(){
 function getEntriesForPeriod(mode){
   const entries = (lastData.dailyEntries||[]).map(e=>({...e, dt:parseDateSmart(e.date)})).filter(e=>e.dt);
   if(entries.length===0) return [];
-  if(mode==='ngay'){
-    let latest=null; entries.forEach(e=>{ if(!latest||e.dt>latest) latest=e.dt; });
+  let latest=null; entries.forEach(e=>{ if(!latest||e.dt>latest) latest=e.dt; });
+  if(mode==='ca'){
+    // Chi lay dung 1 ca gan nhat (khong gop ca ngay + ca toi)
+    const latestEntry = entries.slice().sort((a,b)=>b.dt-a.dt || (b.timestamp||'').localeCompare(a.timestamp||''))[0];
+    return latestEntry ? entries.filter(e=>e.dt.getTime()===latest.getTime() && e.shift===latestEntry.shift) : [];
+  } else if(mode==='ngay'){
     return entries.filter(e=>latest && e.dt.getTime()===latest.getTime());
   } else if(mode==='tuan'){
-    const monday = getMondayOfWeek(new Date());
+    const monday = getMondayOfWeek(latest || new Date());
     const sunday = new Date(monday); sunday.setDate(monday.getDate()+6);
     return entries.filter(e=>e.dt>=monday && e.dt<=sunday);
   } else { // thang
-    const now = new Date();
-    return entries.filter(e=>e.dt.getFullYear()===now.getFullYear() && e.dt.getMonth()===now.getMonth());
+    const ref = latest || new Date();
+    return entries.filter(e=>e.dt.getFullYear()===ref.getFullYear() && e.dt.getMonth()===ref.getMonth());
   }
 }
 
@@ -2301,6 +2321,45 @@ function renderOperatingSummary(){
   }).join('');
 }
 
+function renderLineContribution(){
+  if(!lastData) return;
+  const mode = document.getElementById('lineContribViewMode')?.value || 'ngay';
+  const b = getTimeBuckets(mode);
+  const labels = b.labels;
+
+  // Tach ty le RO-A / RO-B tu tong "Nuoc sach RO" da tinh dung (m3) cua tung ca,
+  // dua theo ty trong luu luong (m3/h) cua tung he trong chinh ca do - khong can biet so gio ca la 8 hay 12
+  function splitRoAB(entries){
+    let roA = 0, roB = 0;
+    entries.forEach(e=>{
+      const rateA = parseFloat(e.nuocsach_roa) || 0;
+      const rateB = parseFloat(e.nuocsach_rob) || 0;
+      const total = parseFloat(e.ro_permeate_m3) || 0;
+      if(rateA+rateB > 0 && total > 0){
+        roA += total * rateA/(rateA+rateB);
+        roB += total * rateB/(rateA+rateB);
+      }
+    });
+    return { roA, roB };
+  }
+  const roAVals = labels.map(l=> Math.round(splitRoAB(b.groups[l]||[]).roA));
+  const roBVals = labels.map(l=> Math.round(splitRoAB(b.groups[l]||[]).roB));
+
+  if(charts.lineContribChart) charts.lineContribChart.destroy();
+  const canvas = document.getElementById('lineContribChart');
+  if(!canvas) return;
+  charts.lineContribChart = new Chart(canvas, {
+    type:'bar',
+    data:{labels, datasets:[
+      {label:'Nước sạch RO-A (m³)', data:roAVals, backgroundColor:'#f5811f', borderRadius:4},
+      {label:'Nước sạch RO-B (m³)', data:roBVals, backgroundColor:'#4fc3f7', borderRadius:4}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'bottom',labels:{boxWidth:8,boxHeight:8,padding:8,font:{size:9.5}}}},
+      scales:{y:{min:0,grid:{color:'#26262a'}}, x:{grid:{display:false},ticks:{font:{size:8.5}}}}}
+  });
+}
+
 function renderDashboard(d){
   lastData = d;
   Object.values(charts).forEach(c=>c.destroy());
@@ -2350,11 +2409,7 @@ function renderDashboard(d){
 
 renderOperatingSummary();
 
-  const lc = d.lineContribution||[];
-  const maxPct = Math.max(...lc.map(r=>Number(r.percent)||0), 1);
-  document.getElementById('lineContribution').innerHTML = lc.map(r=>`
-    <div class="bar-item"><div class="lbl">${r.line} <b>${Number(r.value_m3).toLocaleString()} (${r.percent}%)</b></div>
-    <div class="bar-track"><div class="bar-fill" style="width:${(r.percent/maxPct*100)}%;"></div></div></div>`).join('');
+  renderLineContribution();
 
   const cv = d.costVariance||[];
   let running=0; const floatData=[]; const colors=[];
