@@ -525,8 +525,8 @@
               </select>
             </div>
           </div>
-          <div>
-            <label>Nước bơm cho YY (m³) <span style="font-size:9px;color:var(--gray2);">— chỉ nhập khi đủ chỉ tiêu theo yêu cầu QL, kèm ảnh</span></label>
+          <div id="pumpyy_block">
+            <label>Nước bơm cho YY (m³) <span style="font-size:9px;color:var(--gray2);">— chỉ Ca tối nhập, khi đủ chỉ tiêu theo yêu cầu QL, kèm ảnh</span></label>
             <input type="number" id="ef_pumpyy" placeholder="VD: 380">
             <input type="file" accept="image/*" capture="environment" id="ef_photo_pumpyy" onchange="previewPhoto('ef_photo_pumpyy','preview_pumpyy')" style="margin-top:6px;font-size:10.5px;">
             <img id="preview_pumpyy" style="display:none;max-width:110px;border-radius:8px;margin-top:6px;border:1px solid var(--border);">
@@ -573,7 +573,7 @@
           </div>
         </div>
 
-        <h4>🧽 Vệ sinh CIP</h4>
+        <details class="ef-detail"><summary>🧽 Vệ sinh CIP & Bảo trì <span style="font-size:9.5px;color:var(--gray2);font-weight:400;">— chỉ mở khi trong ca có làm CIP/vệ sinh/thay phụ kiện</span></summary>
         <div class="ef-tasks" id="ef_tasks"></div>
 
         <!-- CIP -->
@@ -628,6 +628,7 @@
             </table>
           </div>
         </div>
+        </details>
 
         <h4>🚨 Báo cáo sự cố</h4>
         <div class="task-block">
@@ -934,6 +935,9 @@ function updateShiftColumns(){
   const showSang = shift.indexOf('tối') === -1; // Ca ngày -> hiện Sáng, Ca tối -> hiện Tối
   document.querySelectorAll('.col-sang').forEach(el=>{ el.style.display = showSang ? '' : 'none'; });
   document.querySelectorAll('.col-toi').forEach(el=>{ el.style.display = showSang ? 'none' : ''; });
+  // Nuoc bom cho YY: chi Ca toi moi nhap, Ca sang khong hien thi muc nay
+  const pumpyyBlock = document.getElementById('pumpyy_block');
+  if(pumpyyBlock) pumpyyBlock.style.display = showSang ? 'none' : '';
 }
 
 function buildDetailForms(){
