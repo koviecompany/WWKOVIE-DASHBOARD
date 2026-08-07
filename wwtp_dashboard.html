@@ -1419,9 +1419,15 @@ function extractNumberFromOCR(text){
   if(!text) return null;
   const matches = text.match(/\d+[.,]?\d*/g);
   if(!matches || matches.length===0) return null;
-  // Ưu tiên chuỗi số có nhiều chữ số nhất tìm được trong ảnh (thường là chỉ số đồng hồ, không phải số lẻ khác lẫn trong ảnh)
-  matches.sort((a,b)=> b.replace(/[.,]/g,'').length - a.replace(/[.,]/g,'').length);
-  return matches[0].replace(',', '.');
+  // Uu tien so co PHAN NGUYEN (truoc dau cham) dai nhat - day thuong la so TONG TICH LUY tren dong ho
+  // (VD "Σ+155979.129 m³"), khong phai so luu luong tuc thoi (VD "65.56 m3/h") hay % nho khac lan trong anh
+  matches.sort((a,b)=>{
+    const intLenA = a.split(/[.,]/)[0].length;
+    const intLenB = b.split(/[.,]/)[0].length;
+    return intLenB - intLenA;
+  });
+  // Chi lay PHAN NGUYEN (truoc dau cham), bo qua phan thap phan
+  return matches[0].split(/[.,]/)[0];
 }
 
 async function runMeterOCR(fileInputId, targetFieldId, noticeId){
@@ -1436,7 +1442,9 @@ async function runMeterOCR(fileInputId, targetFieldId, noticeId){
   notice.style.color = 'var(--gray)';
   notice.textContent = '🔍 Đang tự động đọc số từ ảnh...';
   try{
-    const { data: { text } } = await Tesseract.recognize(inp.files[0], 'eng');
+    const { data: { text } } = await Tesseract.recognize(inp.files[0], 'eng', {
+      tessedit_char_whitelist: '0123456789.,'
+    });
     const num = extractNumberFromOCR(text);
     if(num){
       document.getElementById(targetFieldId).value = num;
