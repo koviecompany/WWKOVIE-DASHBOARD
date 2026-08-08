@@ -383,12 +383,17 @@
     </div>
     <div class="panel wide" id="panel-p12">
       <h3>ÁP SUẤT RO — ĐẦU VÀO & REJECT (Bar)
-        <select id="pressureViewMode" onchange="renderPressureTrend()" style="background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:10px;padding:3px 6px;">
+        <select id="pressureViewMode" onchange="onPressureViewModeChange()" style="background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:10px;padding:3px 6px;">
           <option value="ca">Theo ca</option>
           <option value="ngay" selected>Theo ngày</option>
           <option value="tuan">Theo tuần</option>
           <option value="thang">Theo tháng</option>
         </select>
+        <span id="pressureWeekNav" style="display:none;align-items:center;gap:4px;">
+          <button onclick="changePressureWeek(-1)" title="Tuần trước" style="background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:11px;padding:3px 7px;cursor:pointer;">◀</button>
+          <span id="pressureWeekLabel" style="font-size:9.5px;color:var(--gray);white-space:nowrap;"></span>
+          <button onclick="changePressureWeek(1)" title="Tuần sau" style="background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:11px;padding:3px 7px;cursor:pointer;">▶</button>
+        </span>
       </h3>
       <div class="ef-row" style="margin:2px 0 6px;gap:6px;">
         <label style="font-size:9.5px;color:var(--gray2);">🤖 Cảnh báo CIP thông minh — báo khi Reject tăng hoặc Vào giảm quá</label>
@@ -870,6 +875,7 @@ function enterApp(){
   buildCipBatchGroups();
   applyPermissions();
   onFlowViewModeChange(); // dam bao nut chuyen tuan hien dung tu dau (mac dinh dang "Theo ngay")
+  onPressureViewModeChange();
   showPage('overview','Tổng quan');
 }
 
@@ -1099,11 +1105,33 @@ function avgDetailField(entry, fieldSlug){
 }
 
 /* ================= ÁP SUẤT RO — ĐẦU VÀO & REJECT (từ chi tiết báo cáo ca) ================= */
+let pressureWeekOffset = 0; // 0 = tuan gan nhat co du lieu, -1 = tuan truoc, +1 = tuan sau
+
+function onPressureViewModeChange(){
+  const mode = document.getElementById('pressureViewMode').value;
+  document.getElementById('pressureWeekNav').style.display = mode==='ngay' ? 'flex' : 'none';
+  if(mode==='ngay') pressureWeekOffset = 0;
+  renderPressureTrend();
+}
+
+function changePressureWeek(delta){
+  pressureWeekOffset += delta;
+  renderPressureTrend();
+}
+
 function renderPressureTrend(){
   if(!lastData) return;
   const mode = document.getElementById('pressureViewMode')?.value || 'ngay';
-  const b = getTimeBuckets(mode);
+  const b = getTimeBuckets(mode, mode==='ngay' ? pressureWeekOffset : 0);
   const labels = b.labels;
+  if(mode==='ngay'){
+    const lbl = document.getElementById('pressureWeekLabel');
+    if(lbl && labels.length && labels[0].indexOf('(')>-1){
+      const first = labels[0].split('(')[1].replace(')','');
+      const last = labels[labels.length-1].split('(')[1].replace(')','');
+      lbl.textContent = `${first} - ${last}` + (pressureWeekOffset===0 ? ' (tuần này)' : '');
+    }
+  }
 
   function avgPressureField(entries, prefix){
     const vals = [];
@@ -2076,7 +2104,8 @@ function renderFlowChart(){
 }
 
 /* ================= GENERIC TIME-BUCKET HELPERS (dùng chung cho nhiều biểu đồ) ================= */
-function getTimeBuckets(mode){
+function getTimeBuckets(mode, weekOffset){
+  weekOffset = weekOffset || 0;
   const entries = lastData.dailyEntries||[];
   if(entries.length===0) return { labels:['Chưa có báo cáo ca nào'], groups:{'Chưa có báo cáo ca nào':[]} };
   let labels = []; const groups = {};
@@ -2094,9 +2123,11 @@ function getTimeBuckets(mode){
   } else if(mode==='ngay'){
     // Lay tuan CO DU LIEU GAN NHAT thay vi tuan theo lich thuc te,
     // tranh truong hop hom nay chua co bao cao ca thi bieu do trong trơn
+    // weekOffset cho phep lui/toi cac tuan khac (0 = tuan gan nhat co du lieu)
     let latestDate = null;
     entries.forEach(e=>{ const dt=parseDateSmart(e.date); if(dt && (!latestDate||dt>latestDate)) latestDate=dt; });
     const monday = getMondayOfWeek(latestDate || new Date());
+    monday.setDate(monday.getDate() + weekOffset*7);
     const dayNames = ['Thứ 2','Thứ 3','Thứ 4','Thứ 5','Thứ 6','Thứ 7'];
     labels = dayNames.map((n,i)=>{ const d=new Date(monday); d.setDate(monday.getDate()+i); return `${n} (${dateLabel(d)})`; });
     labels.forEach(l=>groups[l]=[]);
