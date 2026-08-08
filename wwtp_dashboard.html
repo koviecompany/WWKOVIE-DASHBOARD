@@ -1424,21 +1424,32 @@ const MECH_ITEMS = ['TMF A','TMF B','Lọc túi A','Lọc túi B'];
 function buildMechCleanBlocks(){
   const el = document.getElementById('mechCleanBlocks');
   if(!el) return;
+  const ACCESSORY_OPTIONS = ['Ron','Nối ống hơi','Ống hơi','Nắp bịt bông','Van','Khác'];
   el.innerHTML = MECH_ITEMS.map(item=>{
     const slug = slugify(item);
+    const accOpts = ACCESSORY_OPTIONS.map(a=>`<option>${a}</option>`).join('');
     return `<div class="task-block">
       <label class="task-toggle"><input type="checkbox" class="tmech-check" value="${item}" id="task_mech_${slug}" onchange="toggleTaskDetail('task_mech_${slug}','taskDetail_mech_${slug}')">${item}</label>
       <div class="task-detail" id="taskDetail_mech_${slug}" style="display:none;">
         <div class="ef-row">
-          <label>Hình thức</label>
-          <select class="tmech-type" data-item="${item}" id="tmech_type_${slug}" onchange="toggleMechQty('${slug}')">
-            <option value="Vệ sinh bằng nước">Vệ sinh bằng nước</option>
-            <option value="Thay thế">Thay thế</option>
-          </select>
-          <span id="tmech_qty_wrap_${slug}" style="display:none;">
-            <label>Số lượng thay (cái)</label>
-            <input type="number" class="tmech-qty" data-item="${item}" id="tmech_qty_${slug}" style="width:70px;">
+          <label><input type="checkbox" class="tmech-wash" data-item="${item}" id="tmech_wash_${slug}" checked> Vệ sinh bằng nước</label>
+        </div>
+        <div class="ef-row">
+          <label><input type="checkbox" class="tmech-replace" data-item="${item}" id="tmech_replace_${slug}" onchange="toggleMechCartridgeQty('${slug}')"> Thay thế bông lọc (cây hỏng)</label>
+          <span id="tmech_cartridge_wrap_${slug}" style="display:none;">
+            <label>Số cây</label>
+            <input type="number" step="1" class="tmech-cartridge-qty" data-item="${item}" id="tmech_cartridge_qty_${slug}" style="width:60px;" oninput="this.value=this.value?Math.round(this.value):this.value;">
           </span>
+        </div>
+        <div class="ef-detail-group"><h5>Phụ kiện thay thế (nếu có)</h5>
+          <div class="ef-row">
+            <select class="tmech-accessory" data-item="${item}" id="tmech_accessory_${slug}" onchange="toggleMechAccessoryNote('${slug}')">
+              <option value="">— Không thay phụ kiện —</option>${accOpts}
+            </select>
+            <label>Số lượng</label>
+            <input type="number" step="1" class="tmech-accessory-qty" data-item="${item}" id="tmech_accessory_qty_${slug}" style="width:60px;" oninput="this.value=this.value?Math.round(this.value):this.value;">
+          </div>
+          <input type="text" class="tmech-accessory-note" data-item="${item}" id="tmech_accessory_note_${slug}" placeholder="Ghi rõ tên phụ kiện khác..." style="display:none;width:100%;margin-top:6px;background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--white);font-size:11px;">
         </div>
       </div>
     </div>`;
@@ -1451,9 +1462,14 @@ function toggleTaskDetail(checkboxId, detailId){
   if(detail) detail.style.display = (cb && cb.checked) ? 'block' : 'none';
 }
 
-function toggleMechQty(slug){
-  const type = document.getElementById('tmech_type_'+slug).value;
-  document.getElementById('tmech_qty_wrap_'+slug).style.display = (type==='Thay thế') ? 'inline-block' : 'none';
+function toggleMechCartridgeQty(slug){
+  const checked = document.getElementById('tmech_replace_'+slug).checked;
+  document.getElementById('tmech_cartridge_wrap_'+slug).style.display = checked ? 'inline-block' : 'none';
+}
+
+function toggleMechAccessoryNote(slug){
+  const val = document.getElementById('tmech_accessory_'+slug).value;
+  document.getElementById('tmech_accessory_note_'+slug).style.display = (val==='Khác') ? 'block' : 'none';
 }
 
 function collectTasksDone(){
@@ -1531,9 +1547,22 @@ function collectTasksDetailJSON(){
   document.querySelectorAll('.tmech-check:checked').forEach(cb=>{
     const item = cb.value;
     const slug = slugify(item);
-    const type = document.getElementById('tmech_type_'+slug)?.value || '';
-    const qty = document.getElementById('tmech_qty_'+slug)?.value || '';
-    mechResult[item] = { type, qty: (type==='Thay thế') ? qty : '' };
+    const wash = document.getElementById('tmech_wash_'+slug)?.checked || false;
+    const replaced = document.getElementById('tmech_replace_'+slug)?.checked || false;
+    const cartridgeQty = replaced ? (document.getElementById('tmech_cartridge_qty_'+slug)?.value || '') : '';
+    const accessory = document.getElementById('tmech_accessory_'+slug)?.value || '';
+    const accessoryQty = accessory ? (document.getElementById('tmech_accessory_qty_'+slug)?.value || '') : '';
+    let accessoryLabel = accessory;
+    if(accessory==='Khác'){
+      const note = document.getElementById('tmech_accessory_note_'+slug)?.value || '';
+      if(note) accessoryLabel = 'Khác: '+note;
+    }
+    mechResult[item] = {
+      ve_sinh_bang_nuoc: wash ? 'Có' : '',
+      thay_bong_loc_cay: cartridgeQty,
+      phu_kien: accessoryLabel,
+      phu_kien_so_luong: accessoryQty
+    };
   });
   if(Object.keys(mechResult).length) obj.mech_clean = mechResult;
   if(document.getElementById('task_other')?.checked){
@@ -1565,9 +1594,7 @@ function clearTaskDetails(){
 
   document.querySelectorAll('.tmech-check').forEach(cb=>cb.checked=false);
   document.querySelectorAll('[id^="taskDetail_mech_"]').forEach(d=>d.style.display='none');
-  document.querySelectorAll('.tmech-qty').forEach(i=>i.value='');
-  document.querySelectorAll('[id^="tmech_qty_wrap_"]').forEach(w=>w.style.display='none');
-  document.querySelectorAll('.tmech-type').forEach(s=>s.value='Vệ sinh bằng nước');
+  buildMechCleanBlocks();
 
   const other = document.getElementById('task_other');
   if(other){ other.checked=false; document.getElementById('taskDetail_other').style.display='none'; }
