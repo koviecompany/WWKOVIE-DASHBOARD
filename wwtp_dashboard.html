@@ -622,30 +622,68 @@
           <div class="task-detail" id="taskDetail_cip" style="display:none;">
             <div class="ef-detail-group"><h5>Hệ thống CIP (chọn 1 hoặc nhiều)</h5>
               <div class="ef-tasks">
-                <label><input type="checkbox" class="tcip-sys" value="UF A">UF A</label>
-                <label><input type="checkbox" class="tcip-sys" value="UF B">UF B</label>
-                <label><input type="checkbox" class="tcip-sys" value="RO A">RO A</label>
-                <label><input type="checkbox" class="tcip-sys" value="RO B">RO B</label>
+                <label><input type="checkbox" class="tcip-sys tcip-sys-uf" value="UF A" onchange="toggleCipBatchGroups()">UF A</label>
+                <label><input type="checkbox" class="tcip-sys tcip-sys-uf" value="UF B" onchange="toggleCipBatchGroups()">UF B</label>
+                <label><input type="checkbox" class="tcip-sys tcip-sys-ro" value="RO A" onchange="toggleCipBatchGroups()">RO A</label>
+                <label><input type="checkbox" class="tcip-sys tcip-sys-ro" value="RO B" onchange="toggleCipBatchGroups()">RO B</label>
               </div>
             </div>
-            <div class="ef-detail-group"><h5>Hóa chất sử dụng</h5>
-              <table class="ef-detail-table">
-                <thead><tr><th style="text-align:left;">Chọn</th><th style="text-align:left;">Hóa chất</th><th>Số lượng</th><th>Đơn vị</th></tr></thead>
-                <tbody>
-                  <tr><td><input type="checkbox" class="tcip-chem-check" data-chem="NaOH/Xút"></td><td class="label-col">NaOH / Xút</td>
-                    <td><input type="number" step="0.1" class="tcip-chem-qty" data-chem="NaOH/Xút"></td>
-                    <td><select class="tcip-chem-unit" data-chem="NaOH/Xút"><option value="lít">lít</option><option value="kg">kg</option></select></td></tr>
-                  <tr><td><input type="checkbox" class="tcip-chem-check" data-chem="NaOCl/Javen"></td><td class="label-col">NaOCl / Javen</td>
-                    <td><input type="number" step="0.1" class="tcip-chem-qty" data-chem="NaOCl/Javen"></td>
-                    <td><select class="tcip-chem-unit" data-chem="NaOCl/Javen"><option value="lít">lít</option><option value="kg">kg</option></select></td></tr>
-                  <tr><td><input type="checkbox" class="tcip-chem-check" data-chem="Axit Citric"></td><td class="label-col">Axit Citric</td>
-                    <td><input type="number" step="0.1" class="tcip-chem-qty" data-chem="Axit Citric"></td>
-                    <td><select class="tcip-chem-unit" data-chem="Axit Citric"><option value="kg">kg</option><option value="lít">lít</option></select></td></tr>
-                  <tr><td><input type="checkbox" class="tcip-chem-check" data-chem="SMB"></td><td class="label-col">SMB</td>
-                    <td><input type="number" step="0.1" class="tcip-chem-qty" data-chem="SMB"></td>
-                    <td><select class="tcip-chem-unit" data-chem="SMB"><option value="kg">kg</option><option value="lít">lít</option></select></td></tr>
-                </tbody>
-              </table>
+
+            <div class="ef-detail-group" id="cipBatchUF" style="display:none;">
+              <h5>Pha hóa chất CIP hệ UF <span style="font-size:9px;color:var(--gray2);font-weight:400;">— 1 lần CIP UF cần pha 2 thùng</span></h5>
+              <div class="ef-grid">
+                <div>
+                  <label>Thùng 1 — Hóa chất</label>
+                  <select class="cip-batch-chem" data-group="uf" data-batch="1">
+                    <option value="">— Chọn hóa chất —</option>
+                    <option>NaOH / Xút</option><option>NaOCl / Javen</option><option>Axit Citric</option><option>SMB</option>
+                  </select>
+                  <label style="margin-top:6px;">Số lượng (kg)</label>
+                  <input type="number" step="0.1" class="cip-batch-qty" data-group="uf" data-batch="1">
+                </div>
+                <div>
+                  <label>Thùng 2 — Hóa chất</label>
+                  <select class="cip-batch-chem" data-group="uf" data-batch="2">
+                    <option value="">— Chọn hóa chất —</option>
+                    <option>NaOH / Xút</option><option>NaOCl / Javen</option><option>Axit Citric</option><option>SMB</option>
+                  </select>
+                  <label style="margin-top:6px;">Số lượng (kg)</label>
+                  <input type="number" step="0.1" class="cip-batch-qty" data-group="uf" data-batch="2">
+                </div>
+              </div>
+            </div>
+
+            <div class="ef-detail-group" id="cipBatchRO" style="display:none;">
+              <h5>Pha hóa chất CIP hệ RO <span style="font-size:9px;color:var(--gray2);font-weight:400;">— 1 lần CIP RO cần pha 3 thùng</span></h5>
+              <div class="ef-grid">
+                <div>
+                  <label>Thùng 1 — Hóa chất</label>
+                  <select class="cip-batch-chem" data-group="ro" data-batch="1">
+                    <option value="">— Chọn hóa chất —</option>
+                    <option>NaOH / Xút</option><option>NaOCl / Javen</option><option>Axit Citric</option><option>SMB</option>
+                  </select>
+                  <label style="margin-top:6px;">Số lượng (kg)</label>
+                  <input type="number" step="0.1" class="cip-batch-qty" data-group="ro" data-batch="1">
+                </div>
+                <div>
+                  <label>Thùng 2 — Hóa chất</label>
+                  <select class="cip-batch-chem" data-group="ro" data-batch="2">
+                    <option value="">— Chọn hóa chất —</option>
+                    <option>NaOH / Xút</option><option>NaOCl / Javen</option><option>Axit Citric</option><option>SMB</option>
+                  </select>
+                  <label style="margin-top:6px;">Số lượng (kg)</label>
+                  <input type="number" step="0.1" class="cip-batch-qty" data-group="ro" data-batch="2">
+                </div>
+                <div>
+                  <label>Thùng 3 — Hóa chất</label>
+                  <select class="cip-batch-chem" data-group="ro" data-batch="3">
+                    <option value="">— Chọn hóa chất —</option>
+                    <option>NaOH / Xút</option><option>NaOCl / Javen</option><option>Axit Citric</option><option>SMB</option>
+                  </select>
+                  <label style="margin-top:6px;">Số lượng (kg)</label>
+                  <input type="number" step="0.1" class="cip-batch-qty" data-group="ro" data-batch="3">
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -1473,20 +1511,29 @@ function collectTasksDone(){
   return cip.concat(mech, other, incident).join(', ');
 }
 
+function toggleCipBatchGroups(){
+  const anyUF = document.querySelectorAll('.tcip-sys-uf:checked').length > 0;
+  const anyRO = document.querySelectorAll('.tcip-sys-ro:checked').length > 0;
+  const ufBox = document.getElementById('cipBatchUF');
+  const roBox = document.getElementById('cipBatchRO');
+  if(ufBox) ufBox.style.display = anyUF ? 'block' : 'none';
+  if(roBox) roBox.style.display = anyRO ? 'block' : 'none';
+}
+
 function collectTasksDetailJSON(){
   const obj = {};
   if(document.getElementById('task_cip')?.checked){
     const systems = Array.from(document.querySelectorAll('.tcip-sys:checked')).map(cb=>cb.value);
-    const chemicals = {};
-    document.querySelectorAll('.tcip-chem-check').forEach(cb=>{
-      if(cb.checked){
-        const chem = cb.getAttribute('data-chem');
-        const qtyEl = document.querySelector(`.tcip-chem-qty[data-chem="${chem}"]`);
-        const unitEl = document.querySelector(`.tcip-chem-unit[data-chem="${chem}"]`);
-        chemicals[chem] = { qty: qtyEl?qtyEl.value:'', unit: unitEl?unitEl.value:'' };
-      }
-    });
-    obj.cip = { systems, chemicals };
+    function readBatches(group){
+      const batches = [];
+      document.querySelectorAll(`.cip-batch-chem[data-group="${group}"]`).forEach(sel=>{
+        const batchNum = sel.getAttribute('data-batch');
+        const qtyEl = document.querySelector(`.cip-batch-qty[data-group="${group}"][data-batch="${batchNum}"]`);
+        if(sel.value){ batches.push({ thung: batchNum, hoa_chat: sel.value, so_luong_kg: qtyEl?qtyEl.value:'' }); }
+      });
+      return batches;
+    }
+    obj.cip = { systems, uf_batches: readBatches('uf'), ro_batches: readBatches('ro') };
   }
   const mechResult = {};
   document.querySelectorAll('.tmech-check:checked').forEach(cb=>{
@@ -1520,8 +1567,10 @@ function clearTaskDetails(){
   const cip = document.getElementById('task_cip');
   if(cip){ cip.checked=false; document.getElementById('taskDetail_cip').style.display='none'; }
   document.querySelectorAll('.tcip-sys').forEach(cb=>cb.checked=false);
-  document.querySelectorAll('.tcip-chem-check').forEach(cb=>cb.checked=false);
-  document.querySelectorAll('.tcip-chem-qty').forEach(i=>i.value='');
+  document.querySelectorAll('.cip-batch-chem').forEach(s=>s.value='');
+  document.querySelectorAll('.cip-batch-qty').forEach(i=>i.value='');
+  document.getElementById('cipBatchUF').style.display='none';
+  document.getElementById('cipBatchRO').style.display='none';
 
   document.querySelectorAll('.tmech-check').forEach(cb=>cb.checked=false);
   document.querySelectorAll('[id^="taskDetail_mech_"]').forEach(d=>d.style.display='none');
