@@ -1389,9 +1389,41 @@ function renderCipSmartAlerts(d){
   el.innerHTML = computeCipSmartAlerts(d).map(a=>`<div class="alert-item ${a.level}">${a.text}</div>`).join('');
 }
 
+function extractCipEventsFromEntries(entries){
+  // Lay cac lan CIP da tick trong "Nhan vien nhap lieu" (tasks_detail_json.cip),
+  // gop chung voi Nhat ky CIP rieng de theo doi day du, khong bi sot
+  const events = [];
+  entries.forEach(e=>{
+    if(!e.tasks_detail_json) return;
+    let parsed; try{ parsed = JSON.parse(e.tasks_detail_json); }catch(err){ return; }
+    if(!parsed.cip || !parsed.cip.systems || !parsed.cip.systems.length) return;
+    const who = e.fullname || e.username || '';
+    parsed.cip.systems.forEach(sys=>{
+      const isUF = sys.indexOf('UF')===0;
+      const batches = isUF ? (parsed.cip.uf_batches||[]) : (parsed.cip.ro_batches||[]);
+      const chemStr = batches.map(b=>{
+        const items = (b.hoa_chat||[]).map(h=>`${h.hoa_chat} ${h.so_luong_kg||''}kg`).join(', ');
+        return items ? `Thùng ${b.thung}: ${items}` : '';
+      }).filter(Boolean).join(' | ') || '—';
+      events.push({ date: e.date, system: sys, chemStr, note: `Từ báo cáo ca (${e.shift||''} - ${who})` });
+    });
+  });
+  return events;
+}
+
 function renderCIP(d){
   renderCipSmartAlerts(d);
-  const log = d.cipLog||[];
+  const standaloneLog = (d.cipLog||[]).map(c=>{
+    let chemStr = '—';
+    if(c.chemicals_json){ try{ chemStr = formatCipChemicals(JSON.parse(c.chemicals_json)); }catch(e){} }
+    return { date:c.date, system:c.system, chemStr, note:c.note||'' };
+  });
+  const fromEntries = extractCipEventsFromEntries(d.dailyEntries||[]);
+  const log = standaloneLog.concat(fromEntries).sort((a,b)=>{
+    const da = parseDateSmart(a.date), db = parseDateSmart(b.date);
+    return (da&&db) ? da-db : 0;
+  });
+
   const systems = ['UF A','UF B','RO A','RO B'];
   const latestBySystem = {};
   log.forEach(c=>{
@@ -1416,9 +1448,7 @@ function renderCIP(d){
   const histEl = document.getElementById('cipHistoryBody');
   if(histEl){
     histEl.innerHTML = log.slice(-15).reverse().map(c=>{
-      let chemStr = '—';
-      if(c.chemicals_json){ try{ chemStr = formatCipChemicals(JSON.parse(c.chemicals_json)); }catch(e){} }
-      return `<tr><td>${c.date||''}</td><td>${c.system||''}</td><td>${chemStr}</td><td>${c.note||''}</td></tr>`;
+      return `<tr><td>${c.date||''}</td><td>${c.system||''}</td><td>${c.chemStr}</td><td>${c.note||''}</td></tr>`;
     }).join('') || '<tr><td colspan="4" style="color:var(--gray);">Chưa có lịch sử CIP.</td></tr>';
   }
   renderMechMaintenance(d);
