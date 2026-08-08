@@ -1049,7 +1049,7 @@ function collectCipChemicals(){
       const chem = cb.getAttribute('data-chem');
       const qtyEl = document.querySelector(`.cip-chem-qty[data-chem="${chem}"]`);
       const unitEl = document.querySelector(`.cip-chem-unit[data-chem="${chem}"]`);
-      result[chem] = { qty: qtyEl.value || 0, unit: unitEl.value };
+      result[chem] = (qtyEl.value || 0) + ' ' + unitEl.value;
     }
   });
   return result;
@@ -1057,9 +1057,6 @@ function collectCipChemicals(){
 function clearCipChemicals(){
   document.querySelectorAll('.cip-chem-check').forEach(cb=>cb.checked=false);
   document.querySelectorAll('.cip-chem-qty').forEach(i=>i.value='');
-}
-function formatCipChemicals(chemObj){
-  return Object.keys(chemObj).map(k=>`${k}: ${chemObj[k].qty} ${chemObj[k].unit}`).join(', ') || '—';
 }
 
 async function saveCip(){
@@ -1069,7 +1066,11 @@ async function saveCip(){
   const note = document.getElementById('cip_note').value;
   const chemicals = collectCipChemicals();
   if(!date){ msg.style.color='var(--red)'; msg.textContent='Vui lòng chọn ngày CIP.'; return; }
-  const cip = { system, date, note, username: currentUser?currentUser.username:'', fullname: currentUser?currentUser.fullname:'', chemicals_json: JSON.stringify(chemicals) };
+  const cip = {
+    system, date, note, username: currentUser?currentUser.username:'', fullname: currentUser?currentUser.fullname:'',
+    nguon: 'Nhập tay (CIP RO&UF)',
+    naoh: chemicals['NaOH']||'', naocl: chemicals['NaOCl']||'', axit_citric: chemicals['Axit Citric']||'', smb: chemicals['SMB']||''
+  };
 
   if(isApiConfigured() && currentUser && currentUser.username!=='demo'){
     try{
@@ -1389,37 +1390,18 @@ function renderCipSmartAlerts(d){
   el.innerHTML = computeCipSmartAlerts(d).map(a=>`<div class="alert-item ${a.level}">${a.text}</div>`).join('');
 }
 
-function extractCipEventsFromEntries(entries){
-  // Lay cac lan CIP da tick trong "Nhan vien nhap lieu" (tasks_detail_json.cip),
-  // gop chung voi Nhat ky CIP rieng de theo doi day du, khong bi sot
-  const events = [];
-  entries.forEach(e=>{
-    if(!e.tasks_detail_json) return;
-    let parsed; try{ parsed = JSON.parse(e.tasks_detail_json); }catch(err){ return; }
-    if(!parsed.cip || !parsed.cip.systems || !parsed.cip.systems.length) return;
-    const who = e.fullname || e.username || '';
-    parsed.cip.systems.forEach(sys=>{
-      const isUF = sys.indexOf('UF')===0;
-      const batches = isUF ? (parsed.cip.uf_batches||[]) : (parsed.cip.ro_batches||[]);
-      const chemStr = batches.map(b=>{
-        const items = (b.hoa_chat||[]).map(h=>`${h.hoa_chat} ${h.so_luong_kg||''}kg`).join(', ');
-        return items ? `Thùng ${b.thung}: ${items}` : '';
-      }).filter(Boolean).join(' | ') || '—';
-      events.push({ date: e.date, system: sys, chemStr, note: `Từ báo cáo ca (${e.shift||''} - ${who})` });
-    });
-  });
-  return events;
+function formatCipChemicalsFlat(c){
+  const parts = [];
+  if(c.naoh) parts.push('NaOH: '+c.naoh);
+  if(c.naocl) parts.push('NaOCl: '+c.naocl);
+  if(c.axit_citric) parts.push('Axit Citric: '+c.axit_citric);
+  if(c.smb) parts.push('SMB: '+c.smb);
+  return parts.join(', ') || '—';
 }
 
 function renderCIP(d){
   renderCipSmartAlerts(d);
-  const standaloneLog = (d.cipLog||[]).map(c=>{
-    let chemStr = '—';
-    if(c.chemicals_json){ try{ chemStr = formatCipChemicals(JSON.parse(c.chemicals_json)); }catch(e){} }
-    return { date:c.date, system:c.system, chemStr, note:c.note||'' };
-  });
-  const fromEntries = extractCipEventsFromEntries(d.dailyEntries||[]);
-  const log = standaloneLog.concat(fromEntries).sort((a,b)=>{
+  const log = (d.cipLog||[]).slice().sort((a,b)=>{
     const da = parseDateSmart(a.date), db = parseDateSmart(b.date);
     return (da&&db) ? da-db : 0;
   });
@@ -1448,7 +1430,10 @@ function renderCIP(d){
   const histEl = document.getElementById('cipHistoryBody');
   if(histEl){
     histEl.innerHTML = log.slice(-15).reverse().map(c=>{
-      return `<tr><td>${c.date||''}</td><td>${c.system||''}</td><td>${c.chemStr}</td><td>${c.note||''}</td></tr>`;
+      const chemStr = formatCipChemicalsFlat(c);
+      const thungTxt = c.thung ? ` (Thùng ${c.thung})` : '';
+      const noteTxt = [c.note, c.nguon].filter(Boolean).join(' — ');
+      return `<tr><td>${c.date||''}</td><td>${c.system||''}${thungTxt}</td><td>${chemStr}</td><td>${noteTxt}</td></tr>`;
     }).join('') || '<tr><td colspan="4" style="color:var(--gray);">Chưa có lịch sử CIP.</td></tr>';
   }
   renderMechMaintenance(d);
