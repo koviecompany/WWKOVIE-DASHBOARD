@@ -286,21 +286,16 @@
       <div class="legend" id="legend1"></div>
     </div>
     <div class="panel" id="panel-p4">
-      <h3>XU HƯỚNG NƯỚC SẠCH RO & UF (m³)
-        <select id="recoveryViewMode" onchange="renderEfficiencyTrend()" style="background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:10px;padding:3px 6px;">
+      <h3>CÔNG SUẤT BƠM & NƯỚC CẤP TỪNG LINE RO
+        <select id="pumpLineViewMode" onchange="renderPumpLineTrend()" style="background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:10px;padding:3px 6px;">
           <option value="ca">Theo ca</option>
           <option value="ngay" selected>Theo ngày</option>
           <option value="tuan">Theo tuần</option>
           <option value="thang">Theo tháng</option>
         </select>
       </h3>
-      <div class="ef-row" style="margin:2px 0 6px;gap:6px;">
-        <label style="font-size:9.5px;color:var(--gray2);">🤖 Cảnh báo CIP thông minh — báo khi giảm quá</label>
-        <input type="number" id="cipSmartThreshold" value="15" min="1" max="90" step="1" onchange="renderEfficiencyTrend()" style="width:48px;background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:10px;padding:3px 5px;">
-        <span style="font-size:9.5px;color:var(--gray2);">% so với trung bình gần đây</span>
-      </div>
-      <div id="cipSmartWarning" style="display:none;"></div>
-      <div class="chart-wrap"><canvas id="efficiencyTrend"></canvas></div>
+      <p style="font-size:9.5px;color:var(--gray2);margin:0 0 6px;">Cột = Nước cấp vào RO-A/RO-B (m³/h, trục trái) · Đường = Công suất bơm trung bình (Hz, trục phải)</p>
+      <div class="chart-wrap"><canvas id="pumpLineTrend"></canvas></div>
     </div>
 
     <div class="panel wide tall" id="panel-p5">
@@ -394,6 +389,12 @@
           <option value="thang">Theo tháng</option>
         </select>
       </h3>
+      <div class="ef-row" style="margin:2px 0 6px;gap:6px;">
+        <label style="font-size:9.5px;color:var(--gray2);">🤖 Cảnh báo CIP thông minh — báo khi Reject tăng hoặc Vào giảm quá</label>
+        <input type="number" id="cipSmartThreshold" value="15" min="1" max="90" step="1" onchange="renderPressureTrend()" style="width:48px;background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:10px;padding:3px 5px;">
+        <span style="font-size:9.5px;color:var(--gray2);">% so với trung bình gần đây</span>
+      </div>
+      <div id="cipSmartWarning" style="display:none;"></div>
       <div class="chart-wrap"><canvas id="pressureTrend"></canvas></div>
     </div>
 
@@ -540,7 +541,7 @@
           <label>Nhân viên</label><input type="text" id="ef_fullname" readonly style="min-width:160px;">
         </div>
 
-        <h4>💧 Lưu lượng nước (số chính, bắt buộc nhập) <span style="font-size:9.5px;color:var(--gray2);font-weight:400;">— tự gõ số, kèm chụp ảnh đồng hồ để lưu làm bằng chứng</span></h4>
+        <h4>① 💧 Lưu lượng nước thải & RO <span style="font-size:9.5px;color:var(--gray2);font-weight:400;">— tự gõ số, kèm chụp ảnh đồng hồ để lưu làm bằng chứng</span></h4>
         <div class="ef-grid">
           <div>
             <label>Nước thải đầu vào (m³) <span style="font-size:9px;color:var(--gray2);">— số hiển thị trên PLC cuối ca</span></label>
@@ -549,15 +550,12 @@
             <img id="preview_influent" style="display:none;max-width:110px;border-radius:8px;margin-top:6px;border:1px solid var(--border);">
           </div>
           <div>
-            <label>Nước sạch RO (m³) <span style="font-size:9px;color:var(--gray2);">— tự tính = (RO A+RO B m³/h) × số giờ ca</span></label>
-            <input type="number" id="ef_ro" placeholder="Tự tính từ chi tiết RO A/B bên dưới" readonly style="opacity:.85;">
-            <div class="ef-row" style="margin:6px 0 0;">
-              <label style="font-size:10px;">Số giờ / ca</label>
-              <select id="ef_ca_hours" onchange="autoCalcNuocSachRO()" style="background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:11px;padding:3px 6px;">
-                <option value="12" selected>12 giờ</option>
-                <option value="8">8 giờ</option>
-              </select>
-            </div>
+            <label>Số giờ / ca</label>
+            <select id="ef_ca_hours" onchange="autoCalcNuocSachRO()" style="background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:11px;padding:8px 6px;width:100%;">
+              <option value="12" selected>12 giờ (7h-19h / 19h-7h)</option>
+              <option value="8">8 giờ</option>
+            </select>
+            <span style="font-size:9px;color:var(--gray2);">Áp dụng chung để tự tính Nước sạch RO & UF bên dưới</span>
           </div>
           <div id="pumpyy_block">
             <label>Nước bơm cho YY (m³) <span style="font-size:9px;color:var(--gray2);">— chỉ Ca tối nhập, khi đủ chỉ tiêu theo yêu cầu QL, kèm ảnh</span></label>
@@ -566,41 +564,40 @@
             <img id="preview_pumpyy" style="display:none;max-width:110px;border-radius:8px;margin-top:6px;border:1px solid var(--border);">
           </div>
         </div>
+        <input type="hidden" id="ef_ro">
 
-        <div class="ef-detail-group"><h5>Lưu lượng UF-A / UF-B <span style="font-size:9px;color:var(--gray2);font-weight:400;">— tự tính = m³/h × số giờ ca (chọn ở ô Nước sạch RO bên trên)</span></h5>
+        <div class="ef-detail-group"><h5>Lưu lượng UF-A / UF-B (m³/h)</h5>
           <div class="ef-grid">
-            <div><label>Nước sạch UF-A (m³/h)</label><input type="number" id="ef_uf_a_rate" oninput="autoCalcUFAB()"></div>
-            <div><label>Nước sạch UF-B (m³/h)</label><input type="number" id="ef_uf_b_rate" oninput="autoCalcUFAB()"></div>
-            <div><label>Nước sạch UF-A (m³)</label><input type="number" id="ef_uf_a" readonly style="opacity:.85;" placeholder="Tự tính"></div>
-            <div><label>Nước sạch UF-B (m³)</label><input type="number" id="ef_uf_b" readonly style="opacity:.85;" placeholder="Tự tính"></div>
+            <div><label>UF-A</label><input type="number" id="ef_uf_a_rate" oninput="autoCalcUFAB()"></div>
+            <div><label>UF-B</label><input type="number" id="ef_uf_b_rate" oninput="autoCalcUFAB()"></div>
           </div>
         </div>
+        <input type="hidden" id="ef_uf_a"><input type="hidden" id="ef_uf_b">
+        <div id="autoCalcSummary" style="font-size:10.5px;color:var(--orange);background:rgba(245,129,31,.08);border:1px solid rgba(245,129,31,.25);border-radius:8px;padding:7px 10px;margin-top:2px;">📊 Hệ thống tự tính: Nước sạch RO = <b>—</b> m³ · UF-A = <b>—</b> m³ · UF-B = <b>—</b> m³</div>
 
+        <p style="font-size:10px;color:var(--gray2);margin:8px 0 0;">Bấm mở các mục bên dưới để ghi chi tiết từng điểm đo và thông số bơm/áp suất RO A-B. Chỉ số pH/TDS/ORP đầu ra RO trên dashboard sẽ tự tính trung bình từ chi tiết Lọc RO-A & Lọc RO-B bên dưới, không cần nhập riêng.</p>
 
-        <p style="font-size:10px;color:var(--gray2);margin:2px 0 0;">Bấm mở các mục bên dưới để ghi chi tiết từng điểm đo (Bể lắng, TMF, Lọc UF, Lọc RO...) và thông số bơm/áp suất RO A-B. Chỉ số pH/TDS/ORP đầu ra RO trên dashboard sẽ tự tính trung bình từ chi tiết Lọc RO-A & Lọc RO-B bên dưới, không cần nhập riêng.</p>
-
-        <details class="ef-detail" open><summary>📋 Chi tiết pH / TDS / ORP theo từng điểm (đo mỗi ca)</summary>
+        <details class="ef-detail" open><summary>② 📋 Chi tiết pH / TDS / ORP theo từng điểm (đo mỗi ca)</summary>
           <div id="detailPhTdsOrp"></div>
         </details>
 
-        <details class="ef-detail"><summary>🎨 Độ màu / Độ đục / COD / SDI <span style="font-size:9.5px;color:var(--gray2);font-weight:400;">— chỉ đo 1 tuần 2 lần, không cần mở mỗi ca</span></summary>
+        <details class="ef-detail"><summary>③ 🎨 Độ màu / Độ đục / COD / SDI <span style="font-size:9.5px;color:var(--gray2);font-weight:400;">— chỉ đo 1 tuần 2 lần, không cần mở mỗi ca</span></summary>
           <div id="detailWaterQualityWeekly"></div>
         </details>
 
-        <details class="ef-detail" open><summary>⚙️ Chi tiết thông số RO A & RO B</summary>
+        <details class="ef-detail" open><summary>④ ⚙️ Chi tiết thông số RO A & RO B (bơm, áp suất, lưu lượng)</summary>
           <div id="detailRoAB"></div>
         </details>
 
-        <h4>Hóa chất sử dụng trong ca <span style="font-size:9.5px;color:var(--gray2);font-weight:400;">(lít — PAC/PAM tự cộng tổng từ chi tiết bên dưới)</span></h4>
+        <h4>⑤ Hóa chất sử dụng trong ca (lít)</h4>
         <div class="ef-grid">
-          <div><label>PAC 10% — tổng</label><input type="number" id="ef_pac" readonly style="opacity:.85;" placeholder="Tự tính"></div>
-          <div><label>Polymer (PAM) 0.05% — tổng</label><input type="number" id="ef_polymer" readonly style="opacity:.85;" placeholder="Tự tính"></div>
           <div><label>NaOH 10%</label><input type="number" step="1" id="ef_naoh" oninput="this.value=this.value?Math.round(this.value):this.value;"></div>
           <div><label>Javen 10%</label><input type="number" step="1" id="ef_javen" oninput="this.value=this.value?Math.round(this.value):this.value;"></div>
           <div><label>HCl 10%</label><input type="number" step="1" id="ef_hcl" oninput="this.value=this.value?Math.round(this.value):this.value;"></div>
           <div><label>Citric Acid</label><input type="number" step="1" id="ef_citric" oninput="this.value=this.value?Math.round(this.value):this.value;"></div>
           <div><label>Genesys LS (chống cáu cặn)</label><input type="number" step="1" id="ef_genesys" oninput="this.value=this.value?Math.round(this.value):this.value;"></div>
         </div>
+        <input type="hidden" id="ef_pac"><input type="hidden" id="ef_polymer">
         <div class="ef-detail-group"><h5>Chi tiết PAC theo từng bể</h5>
           <div class="ef-grid">
             <div><label>PAC cho bể lắng 1</label><input type="number" step="1" class="chem-detail-input" id="ef_pac_belang1" oninput="this.value=this.value?Math.round(this.value):this.value;autoCalcChemTotals()"></div>
@@ -961,6 +958,7 @@ function autoCalcChemTotals(){
   const pam2b = parseFloat(document.getElementById('ef_pam_belang2b')?.value) || 0;
   document.getElementById('ef_pac').value = Math.round(pac1+pac2a+pac2b);
   document.getElementById('ef_polymer').value = Math.round(pam1+pam2a+pam2b);
+  updateAutoCalcSummary();
 }
 
 function autoCalcNuocSachRO(){
@@ -987,6 +985,16 @@ function autoCalcUFAB(){
   const ufBEl = document.getElementById('ef_uf_b');
   if(ufAEl) ufAEl.value = ufARate!=='' ? Math.round(parseFloat(ufARate)*soGio) : '';
   if(ufBEl) ufBEl.value = ufBRate!=='' ? Math.round(parseFloat(ufBRate)*soGio) : '';
+  updateAutoCalcSummary();
+}
+
+function updateAutoCalcSummary(){
+  const box = document.getElementById('autoCalcSummary');
+  if(!box) return;
+  const ro = document.getElementById('ef_ro')?.value;
+  const ufA = document.getElementById('ef_uf_a')?.value;
+  const ufB = document.getElementById('ef_uf_b')?.value;
+  box.innerHTML = `📊 Hệ thống tự tính: Nước sạch RO = <b>${ro||'—'}</b> m³ · UF-A = <b>${ufA||'—'}</b> m³ · UF-B = <b>${ufB||'—'}</b> m³`;
 }
 
 function updateShiftColumns(){
@@ -1113,6 +1121,35 @@ function renderPressureTrend(){
   }
   const feedAvg = labels.map(l=> avgPressureField(b.groups[l]||[], 'apvao'));
   const rejectAvg = labels.map(l=> avgPressureField(b.groups[l]||[], 'apreject'));
+
+  // Canh bao CIP thong minh: Ap vao giam manh (mang tac) HOAC Ap Reject tang manh (mang bi bam can) so voi trung binh gan day
+  const threshold = parseFloat(document.getElementById('cipSmartThreshold')?.value || '15');
+  const warnBox = document.getElementById('cipSmartWarning');
+  function checkTrend(vals, dir, label){
+    const valid = vals.filter(v=>v!==null && v>0);
+    if(valid.length < 3) return null;
+    const latest = valid[valid.length-1];
+    const baseline = valid.slice(0,-1).reduce((a,c)=>a+c,0) / Math.max(1, valid.slice(0,-1).length);
+    if(baseline<=0) return null;
+    const changePct = dir==='down' ? (baseline-latest)/baseline*100 : (latest-baseline)/baseline*100;
+    if(changePct >= threshold) return { label, changePct, latest, baseline, dir };
+    return null;
+  }
+  const feedDrop = checkTrend(feedAvg, 'down', 'Áp vào RO');
+  const rejectRise = checkTrend(rejectAvg, 'up', 'Áp Reject RO');
+  const warnings = [feedDrop, rejectRise].filter(Boolean);
+  if(warnBox){
+    if(warnings.length){
+      warnBox.style.display = 'block';
+      warnBox.innerHTML = warnings.map(w=>{
+        const verb = w.dir==='down' ? 'giảm' : 'tăng';
+        return `<div class="alert-item danger" style="margin-bottom:6px;">🔴 <b>${w.label}</b> đang ${verb} <b>${w.changePct.toFixed(0)}%</b> so với trung bình gần đây (${w.latest.toFixed(2)} Bar so với ~${w.baseline.toFixed(2)} Bar) — dấu hiệu màng có thể bị tắc/bám cặn, nên kiểm tra vệ sinh CIP.</div>`;
+      }).join('');
+    } else {
+      warnBox.style.display = 'none';
+      warnBox.innerHTML = '';
+    }
+  }
 
   if(charts.pressureTrend) charts.pressureTrend.destroy();
   const canvas = document.getElementById('pressureTrend');
@@ -1554,6 +1591,7 @@ function clearEntryForm(){
   document.getElementById('preview_pumpyy').style.display = 'none';
   clearDetailFields();
   clearTaskDetails();
+  updateAutoCalcSummary();
 }
 
 async function saveEntry(){
@@ -1950,61 +1988,48 @@ function avgField(entries, field){
   return vals.reduce((a,b)=>a+b,0)/vals.length;
 }
 
-function renderEfficiencyTrend(){
+function renderPumpLineTrend(){
   if(!lastData) return;
-  const mode = document.getElementById('recoveryViewMode')?.value || 'ngay';
-  let labels, roVals, ufVals;
-  if(mode==='thang'){
-    labels = (lastData.monthlyTrend||[]).map(r=>r.month);
-    roVals = (lastData.monthlyTrend||[]).map(r=>Number(r.ro_permeate_m3||0));
-    ufVals = (lastData.monthlyTrend||[]).map(r=>Math.round(Number(r.uf_permeate_m3||0) || (Number(r.influent_m3||0)*(DEFAULT_UF_INPUT_PCT/100)*(1-DEFAULT_UF_REJECT_PCT/100))));
-  } else {
-    const b = getTimeBuckets(mode);
-    // Chi giu lai cac moc THOI GIAN CO BAO CAO CA (co du lieu) - bo qua ngay nghi/le khong san xuat,
-    // tranh bieu do tut xuong 0 gia tao va kich hoat canh bao CIP sai
-    const validLabels = b.labels.filter(l => (b.groups[l]||[]).length > 0);
-    labels = validLabels;
-    roVals = labels.map(l=> sumField(b.groups[l]||[], 'ro_permeate_m3'));
-    ufVals = labels.map(l=>{
-      const inf = sumField(b.groups[l]||[], 'influent_m3');
-      return Math.round(inf * (DEFAULT_UF_INPUT_PCT/100) * (1-DEFAULT_UF_REJECT_PCT/100));
+  const mode = document.getElementById('pumpLineViewMode')?.value || 'ngay';
+  const b = getTimeBuckets(mode);
+  const labels = b.labels.filter(l => (b.groups[l]||[]).length > 0); // bo qua ngay khong san xuat, khong de tut ve 0 gia tao
+
+  function avgHz(entries, letter){
+    const vals = [];
+    entries.forEach(e=>{
+      ['1','2','3'].forEach(n=>{
+        const v = avgDetailField(e, 'cs_ro'+letter+n);
+        if(v!==null) vals.push(v);
+      });
     });
+    return vals.length ? +(vals.reduce((a,c)=>a+c,0)/vals.length).toFixed(1) : null;
+  }
+  function sumCap(entries, letter){
+    return entries.reduce((a,e)=>a+(parseFloat(e['nuoccap_ro'+letter])||0), 0);
   }
 
-  // Canh bao CIP thong minh: so gia tri MOI NHAT voi trung binh cac gia tri truoc do, neu giam qua nguong -> canh bao
-  const threshold = parseFloat(document.getElementById('cipSmartThreshold')?.value || '15');
-  const warnBox = document.getElementById('cipSmartWarning');
-  function checkDrop(vals, label){
-    const nonZero = vals.filter(v=>v>0);
-    if(nonZero.length < 3) return null;
-    const latest = vals[vals.length-1];
-    const baseline = nonZero.slice(0, -1).reduce((a,b)=>a+b,0) / Math.max(1, nonZero.slice(0,-1).length);
-    if(baseline<=0) return null;
-    const dropPct = (baseline-latest)/baseline*100;
-    if(dropPct >= threshold) return { label, dropPct, latest, baseline };
-    return null;
-  }
-  const roDrop = checkDrop(roVals, 'Nước sạch RO');
-  const ufDrop = checkDrop(ufVals, 'Nước sạch UF');
-  const warnings = [roDrop, ufDrop].filter(Boolean);
-  if(warnings.length){
-    warnBox.style.display = 'block';
-    warnBox.innerHTML = warnings.map(w=>
-      `<div class="alert-item danger" style="margin-bottom:6px;">🔴 <b>${w.label}</b> đang giảm <b>${w.dropPct.toFixed(0)}%</b> so với trung bình gần đây (${w.latest.toFixed(0)} m³ so với ~${w.baseline.toFixed(0)} m³) — nên kiểm tra vệ sinh CIP.</div>`
-    ).join('');
-  } else {
-    warnBox.style.display = 'none';
-    warnBox.innerHTML = '';
-  }
+  const capA = labels.map(l=> Math.round(sumCap(b.groups[l]||[], 'a')));
+  const capB = labels.map(l=> Math.round(sumCap(b.groups[l]||[], 'b')));
+  const hzA = labels.map(l=> avgHz(b.groups[l]||[], 'a'));
+  const hzB = labels.map(l=> avgHz(b.groups[l]||[], 'b'));
 
-  if(charts.efficiencyTrend) charts.efficiencyTrend.destroy();
-  charts.efficiencyTrend = new Chart(document.getElementById('efficiencyTrend'), {
-    type:'line',
-    data:{labels, datasets:[
-      {label:'Nước sạch RO (m³)', data:roVals, borderColor:'#f5811f', backgroundColor:'rgba(245,129,31,.15)', fill:true, tension:.35, pointRadius:3},
-      {label:'Nước sạch UF (m³)', data:ufVals, borderColor:'#4fc3f7', backgroundColor:'transparent', borderDash:[5,4], tension:.35, pointRadius:2}
+  if(charts.pumpLineTrend) charts.pumpLineTrend.destroy();
+  const canvas = document.getElementById('pumpLineTrend');
+  if(!canvas) return;
+  charts.pumpLineTrend = new Chart(canvas, {
+    data:{labels: labels.length?labels:['Chưa có dữ liệu'], datasets:[
+      {type:'bar', label:'Nước cấp RO-A (m³/h)', data:capA.length?capA:[0], backgroundColor:'#f5811f', borderRadius:4, yAxisID:'y'},
+      {type:'bar', label:'Nước cấp RO-B (m³/h)', data:capB.length?capB:[0], backgroundColor:'#4fc3f7', borderRadius:4, yAxisID:'y'},
+      {type:'line', label:'Bơm RO-A (Hz)', data:hzA.length?hzA:[0], borderColor:'#3ecf8e', backgroundColor:'#3ecf8e', tension:.3, pointRadius:3, yAxisID:'y1', spanGaps:true},
+      {type:'line', label:'Bơm RO-B (Hz)', data:hzB.length?hzB:[0], borderColor:'#ffd54f', backgroundColor:'#ffd54f', tension:.3, pointRadius:3, yAxisID:'y1', borderDash:[5,3], spanGaps:true}
     ]},
-    options:{responsive:true,maintainAspectRatio:false, plugins:{legend:{position:'bottom',labels:{boxWidth:8,boxHeight:8,padding:8,font:{size:9.5}}}}, scales:{y:{grid:{color:'#26262a'}}, x:{grid:{display:false},ticks:{font:{size:8.5}}}}}
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'bottom',labels:{boxWidth:8,boxHeight:8,padding:8,font:{size:9.5}}}},
+      scales:{
+        y:{min:0,position:'left',grid:{color:'#26262a'},title:{display:true,text:'m³/h',color:'#9aa0a6',font:{size:9}}},
+        y1:{min:0,position:'right',grid:{display:false},title:{display:true,text:'Hz',color:'#9aa0a6',font:{size:9}}},
+        x:{grid:{display:false},ticks:{font:{size:8.5}}}
+      }}
   });
 }
 
@@ -2439,7 +2464,7 @@ function renderDashboard(d){
   const totalFlow = d.kpis && d.kpis.find(k=>k.id==='influent');
   document.getElementById('influentCenter').innerHTML = `<b>${totalFlow?totalFlow.value:'—'}</b><span>Tổng lưu lượng</span>`;
 
-  renderEfficiencyTrend();
+  renderPumpLineTrend();
 
 renderOperatingSummary();
 
