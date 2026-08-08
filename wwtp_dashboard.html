@@ -689,7 +689,7 @@
       </div>
 
       <h4 style="margin-top:18px;">Lịch sử báo cáo gần đây</h4>
-      <div style="overflow-x:auto;"><table><thead><tr><th>Ngày</th><th>Ca</th><th>Nhân viên</th><th>NT đầu vào</th><th>Nước RO</th><th>pH</th><th>Ảnh</th><th>Ghi chú</th></tr></thead><tbody id="entriesBody"></tbody></table></div>
+      <div style="overflow-x:auto;"><table><thead><tr><th>Ngày</th><th>Ca</th><th>Nhân viên</th><th>NT đầu vào</th><th>Nước RO</th><th>Nước UF</th><th>TDS</th><th>ORP</th><th>PAC</th><th>PAM</th><th>NaOH</th><th>NaOCl</th><th>HCl</th><th>Genesys LS</th><th>CIP / Cơ học</th><th>Ảnh</th><th>Ghi chú</th></tr></thead><tbody id="entriesBody"></tbody></table></div>
     </div>
   </div>
 </div>
@@ -1820,11 +1820,14 @@ function renderEntriesTable(d){
   document.getElementById('entriesBody').innerHTML = rows.map(r=>{
     let photos = '';
     if(r.photo_influent_url) photos += `<a href="${r.photo_influent_url}" target="_blank" title="Ảnh đồng hồ đầu vào">📷1</a> `;
-    if(r.photo_ro_url) photos += `<a href="${r.photo_ro_url}" target="_blank" title="Ảnh đồng hồ RO">📷2</a> `;
+    if(r.photo_pumpyy_url) photos += `<a href="${r.photo_pumpyy_url}" target="_blank" title="Ảnh đồng hồ bơm YY">📷2</a> `;
     if(r.photo_incident_url) photos += `<a href="${r.photo_incident_url}" target="_blank" title="Ảnh sự cố">🚨📷</a>`;
     const incidentMark = r.has_incident ? ' 🚨' : '';
-    return `<tr><td>${r.date||''}</td><td>${r.shift||''}</td><td>${r.fullname||r.username||''}</td><td>${r.influent_m3||''}</td><td>${r.ro_permeate_m3||''}</td><td>${r.ph_ro||''}</td><td>${photos||'—'}</td><td>${r.notes||''}${incidentMark}</td></tr>`;
-  }).join('') || '<tr><td colspan="8" style="color:var(--gray);">Chưa có báo cáo nào.</td></tr>';
+    const ufA = parseFloat(r.uf_a_m3)||0, ufB = parseFloat(r.uf_b_m3)||0;
+    const ufTotal = (r.uf_a_m3||r.uf_b_m3) ? (ufA+ufB) : '';
+    const cipMech = r.tasks_done || '—';
+    return `<tr><td>${r.date||''}</td><td>${r.shift||''}</td><td>${r.fullname||r.username||''}</td><td>${r.influent_m3||''}</td><td>${r.ro_permeate_m3||''}</td><td>${ufTotal}</td><td>${r.tds_ro||''}</td><td>${r.orp_ro||''}</td><td>${r.chem_pac||''}</td><td>${r.chem_polymer||''}</td><td>${r.chem_naoh||''}</td><td>${r.chem_javen||''}</td><td>${r.chem_hcl||''}</td><td>${r.chem_genesys||''}</td><td style="max-width:180px;white-space:normal;font-size:10px;">${cipMech}</td><td>${photos||'—'}</td><td>${r.notes||''}${incidentMark}</td></tr>`;
+  }).join('') || '<tr><td colspan="17" style="color:var(--gray);">Chưa có báo cáo nào.</td></tr>';
 }
 
 function updateShiftBadge(d){
