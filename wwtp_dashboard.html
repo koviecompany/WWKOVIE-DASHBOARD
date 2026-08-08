@@ -249,7 +249,7 @@
       </div>
     </div>
 
-    <div style="display:flex;align-items:center;justify-content:flex-end;gap:6px;margin-bottom:6px;">
+    <div id="kpiDayNav" style="display:flex;align-items:center;justify-content:flex-end;gap:6px;margin-bottom:6px;">
       <span style="font-size:9.5px;color:var(--gray2);">Xem KPI ngày:</span>
       <button onclick="changeKpiDay(-1)" title="Ngày trước" style="background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:11px;padding:3px 7px;cursor:pointer;">◀</button>
       <span id="kpiDateLabel" style="font-size:9.5px;color:var(--gray);white-space:nowrap;"></span>
@@ -800,6 +800,7 @@ function showPage(key, label){
   if(navEl) navEl.classList.add('active');
   document.getElementById('pageTitle').textContent = (PAGE_ICON[key]||'📌') + ' ' + (label||'').toUpperCase();
   document.getElementById('kpiRow').style.display = (key==='overview') ? '' : 'none';
+  document.getElementById('kpiDayNav').style.display = (key==='overview') ? 'flex' : 'none';
   document.getElementById('printBtn').style.display = (key==='baocao_vanhanh') ? '' : 'none';
   requestAnimationFrame(()=>{ Object.values(charts).forEach(c=>{ try{ c.resize(); }catch(e){} }); });
 }
