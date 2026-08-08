@@ -249,6 +249,12 @@
       </div>
     </div>
 
+    <div style="display:flex;align-items:center;justify-content:flex-end;gap:6px;margin-bottom:6px;">
+      <span style="font-size:9.5px;color:var(--gray2);">Xem KPI ngày:</span>
+      <button onclick="changeKpiDay(-1)" title="Ngày trước" style="background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:11px;padding:3px 7px;cursor:pointer;">◀</button>
+      <span id="kpiDateLabel" style="font-size:9.5px;color:var(--gray);white-space:nowrap;"></span>
+      <button onclick="changeKpiDay(1)" title="Ngày sau" style="background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:11px;padding:3px 7px;cursor:pointer;">▶</button>
+    </div>
     <div class="kpi-row" id="kpiRow"></div>
 
     <div style="display:flex;align-items:center;justify-content:space-between;">
@@ -2468,11 +2474,18 @@ function renderWaterQualityTrend(){
 
 /* ================= RENDER DASHBOARD ================= */
 /* ================= BẢNG TỔNG HỢP VẬN HÀNH (tự tính theo ngày, có nút lùi/tới) ================= */
-let summaryDateOffset = 0; // 0 = hom nay, -1 = hom qua, +1 = ngay mai...
+let summaryDateOffset = 0; // 0 = hom nay, -1 = hom qua, +1 = ngay mai... (dung chung cho ca Bang tong hop va Dai KPI)
 
 function changeSummaryDay(delta){
   summaryDateOffset += delta;
   renderOperatingSummary();
+  renderKpiRow();
+}
+
+function changeKpiDay(delta){
+  summaryDateOffset += delta;
+  renderOperatingSummary();
+  renderKpiRow();
 }
 
 function normDateStr(v){
@@ -2515,6 +2528,53 @@ function fmtDelta(cur, prev, decimals, suffix){
   const arrow = d>0 ? '▲' : (d<0 ? '▼' : '');
   const cls = d>0 ? 'up-txt' : (d<0 ? 'down-txt' : '');
   return { variance: `${d>0?'+':''}${d.toFixed(decimals)}${suffix}`, pct: `${arrow}${Math.abs(pct).toFixed(1)}%`, cls };
+}
+
+function kpiDelta(curVal, prevVal){
+  if(curVal===null || prevVal===null || isNaN(curVal) || isNaN(prevVal) || prevVal===0) return { delta:'', delta_type:'up' };
+  const diff = curVal - prevVal;
+  const pct = diff/Math.abs(prevVal)*100;
+  return { delta: (diff>=0?'▲ ':'▼ ')+Math.abs(pct).toFixed(1)+'%', delta_type: diff>=0?'up':'down' };
+}
+
+function renderKpiRow(){
+  if(!lastData) return;
+  const kpiRow = document.getElementById('kpiRow');
+  if(!kpiRow) return;
+  const today = new Date(); today.setDate(today.getDate() + summaryDateOffset);
+  const yesterday = new Date(today); yesterday.setDate(today.getDate()-1);
+  const todayStr = today.toISOString().slice(0,10);
+  const yesterdayStr = yesterday.toISOString().slice(0,10);
+  const allEntries = lastData.dailyEntries||[];
+  const todayEntries = allEntries.filter(e=>normDateStr(e.date)===todayStr);
+  const yesterdayEntries = allEntries.filter(e=>normDateStr(e.date)===yesterdayStr);
+  const cur = computeSummaryRow(todayEntries);
+  const prev = computeSummaryRow(yesterdayEntries);
+  const buffer = cur.roPermeate - cur.pumpYY;
+
+  const lbl = document.getElementById('kpiDateLabel');
+  if(lbl) lbl.textContent = dateLabel(today) + (summaryDateOffset===0 ? ' (hôm nay)' : '');
+  const subtext = summaryDateOffset===0 ? 'so với hôm qua' : `so với ${dateLabel(yesterday)}`;
+
+  const kpiList = [
+    { id:'influent', label:'TỔNG NƯỚC THẢI ĐẦU VÀO', icon:'💧', value:(cur.influent||0).toFixed(0)+' m³', ...kpiDelta(cur.influent,prev.influent), subtext },
+    { id:'ro_clean', label:'TỔNG NƯỚC SẠCH RO', icon:'🧴', value:(cur.roPermeate||0).toFixed(0)+' m³', ...kpiDelta(cur.roPermeate,prev.roPermeate), subtext },
+    { id:'pump_yy', label:'NƯỚC BƠM CHO YY', icon:'🚿', value:(cur.pumpYY||0).toFixed(0)+' m³', ...kpiDelta(cur.pumpYY,prev.pumpYY), subtext },
+    { id:'buffer_ro', label:'NƯỚC SẠCH GỐI ĐẦU', icon:'🛢️', value: buffer.toFixed(0)+' m³', delta:'', delta_type: buffer>=0?'up':'down', subtext:'RO 2 ca − bơm cho YY' },
+    { id:'recovery', label:'TỶ LỆ RECOVERY', icon:'🔄', value:(cur.recovery!==null?cur.recovery.toFixed(1):'—')+'%', ...kpiDelta(cur.recovery,prev.recovery), subtext },
+    { id:'ph', label:'pH RO', icon:'🧪', value: cur.ph!==null?cur.ph.toFixed(2):'—', ...kpiDelta(cur.ph,prev.ph), subtext },
+    { id:'tds', label:'TDS RO', icon:'🌡️', value:(cur.tds!==null?cur.tds.toFixed(0):'—')+' ppm', ...kpiDelta(cur.tds,prev.tds), subtext },
+    { id:'orp', label:'ORP RO', icon:'🔋', value:(cur.orp!==null?cur.orp.toFixed(0):'—')+' mV', ...kpiDelta(cur.orp,prev.orp), subtext },
+    { id:'color', label:'ĐỘ MÀU RO', icon:'🎨', value:(cur.color!==null?cur.color.toFixed(1):'—')+' Pt-Co', ...kpiDelta(cur.color,prev.color), subtext },
+    { id:'turbidity', label:'ĐỘ ĐỤC RO', icon:'🌫️', value:(cur.turbidity!==null?cur.turbidity.toFixed(1):'—')+' NTU', ...kpiDelta(cur.turbidity,prev.turbidity), subtext }
+  ];
+  kpiRow.innerHTML = kpiList.map(k=>`
+    <div class="kpi">
+      <div class="kpi-top"><div class="kpi-icon">${kpiIconHtml(k)}</div><div class="kpi-label">${k.label}</div></div>
+      <div class="kpi-value">${k.value}</div>
+      <div class="kpi-delta ${k.delta_type==='down'?'down':'up'}">${k.delta}</div>
+      <div class="kpi-sub">${k.subtext||''}</div>
+    </div>`).join('');
 }
 
 function renderOperatingSummary(){
@@ -2607,45 +2667,7 @@ function renderDashboard(d){
 
   document.getElementById('dataAsOf').textContent = d.updatedAt ? new Date(d.updatedAt).toLocaleDateString('vi-VN') : '—';
 
-  const kpiRow = document.getElementById('kpiRow');
-  // TOAN BO 10 O KPI gio tu tinh truc tiep tu bao cao ca that (khong con phu thuoc sheet "Chi so KPI" nhap tay nua)
-  const today = new Date();
-  const yesterday = new Date(today); yesterday.setDate(today.getDate()-1);
-  const todayStr = today.toISOString().slice(0,10);
-  const yesterdayStr = yesterday.toISOString().slice(0,10);
-  const allEntries = d.dailyEntries||[];
-  const todayEntries = allEntries.filter(e=>normDateStr(e.date)===todayStr);
-  const yesterdayEntries = allEntries.filter(e=>normDateStr(e.date)===yesterdayStr);
-  const cur = computeSummaryRow(todayEntries);
-  const prev = computeSummaryRow(yesterdayEntries);
-
-  function kpiDelta(curVal, prevVal, decimals){
-    if(curVal===null || prevVal===null || isNaN(curVal) || isNaN(prevVal) || prevVal===0) return { delta:'', delta_type:'up' };
-    const diff = curVal - prevVal;
-    const pct = diff/Math.abs(prevVal)*100;
-    return { delta: (diff>=0?'▲ ':'▼ ')+Math.abs(pct).toFixed(1)+'%', delta_type: diff>=0?'up':'down' };
-  }
-  const buffer = cur.roPermeate - cur.pumpYY;
-
-  const kpiList = [
-    { id:'influent', label:'TỔNG NƯỚC THẢI ĐẦU VÀO', icon:'💧', value:(cur.influent||0).toFixed(0)+' m³', ...kpiDelta(cur.influent,prev.influent), subtext:'so với hôm qua' },
-    { id:'ro_clean', label:'TỔNG NƯỚC SẠCH RO', icon:'🧴', value:(cur.roPermeate||0).toFixed(0)+' m³', ...kpiDelta(cur.roPermeate,prev.roPermeate), subtext:'so với hôm qua' },
-    { id:'pump_yy', label:'NƯỚC BƠM CHO YY HÔM NAY', icon:'🚿', value:(cur.pumpYY||0).toFixed(0)+' m³', ...kpiDelta(cur.pumpYY,prev.pumpYY), subtext:'so với hôm qua' },
-    { id:'buffer_ro', label:'NƯỚC SẠCH GỐI ĐẦU', icon:'🛢️', value: buffer.toFixed(0)+' m³', delta:'', delta_type: buffer>=0?'up':'down', subtext:'RO 2 ca − bơm cho YY' },
-    { id:'recovery', label:'TỶ LỆ RECOVERY', icon:'🔄', value:(cur.recovery!==null?cur.recovery.toFixed(1):'—')+'%', ...kpiDelta(cur.recovery,prev.recovery), subtext:'so với hôm qua' },
-    { id:'ph', label:'pH RO', icon:'🧪', value: cur.ph!==null?cur.ph.toFixed(2):'—', ...kpiDelta(cur.ph,prev.ph), subtext:'so với hôm qua' },
-    { id:'tds', label:'TDS RO', icon:'🌡️', value:(cur.tds!==null?cur.tds.toFixed(0):'—')+' ppm', ...kpiDelta(cur.tds,prev.tds), subtext:'so với hôm qua' },
-    { id:'orp', label:'ORP RO', icon:'🔋', value:(cur.orp!==null?cur.orp.toFixed(0):'—')+' mV', ...kpiDelta(cur.orp,prev.orp), subtext:'so với hôm qua' },
-    { id:'color', label:'ĐỘ MÀU RO', icon:'🎨', value:(cur.color!==null?cur.color.toFixed(1):'—')+' Pt-Co', ...kpiDelta(cur.color,prev.color), subtext:'so với hôm qua' },
-    { id:'turbidity', label:'ĐỘ ĐỤC RO', icon:'🌫️', value:(cur.turbidity!==null?cur.turbidity.toFixed(1):'—')+' NTU', ...kpiDelta(cur.turbidity,prev.turbidity), subtext:'so với hôm qua' }
-  ];
-  kpiRow.innerHTML = kpiList.map(k=>`
-    <div class="kpi">
-      <div class="kpi-top"><div class="kpi-icon">${kpiIconHtml(k)}</div><div class="kpi-label">${k.label}</div></div>
-      <div class="kpi-value">${k.value}</div>
-      <div class="kpi-delta ${k.delta_type==='down'?'down':'up'}">${k.delta}</div>
-      <div class="kpi-sub">${k.subtext||''}</div>
-    </div>`).join('');
+  renderKpiRow();
 
   const months = (d.monthlyTrend||[]).map(r=>r.month);
   const orange='#f5811f', white='#f5f5f5', gray='#6b7077', green='#3ecf8e', grid='#26262a';
