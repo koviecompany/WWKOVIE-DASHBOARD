@@ -2576,19 +2576,37 @@ function renderDashboard(d){
   document.getElementById('dataAsOf').textContent = d.updatedAt ? new Date(d.updatedAt).toLocaleDateString('vi-VN') : '—';
 
   const kpiRow = document.getElementById('kpiRow');
-  const kpiList = (d.kpis||[]).slice();
-  // Them 2 KPI tu tinh tu bao cao ca hom nay: Do duc RO, va Nuoc sach goi dau (= tong RO 2 ca - Nuoc bom cho YY)
-  const todayStr = new Date().toISOString().slice(0,10);
-  const todayEntries = (d.dailyEntries||[]).filter(e=>normDateStr(e.date)===todayStr);
-  const todayRoTotal = todayEntries.reduce((a,e)=>a+(parseFloat(e.ro_permeate_m3)||0), 0);
-  const todayPumpYY = todayEntries.reduce((a,e)=>a+(parseFloat(e.pump_to_yy_m3)||0), 0);
-  const todayTurbidityVals = todayEntries.map(e=>parseFloat(e.turbidity_ro)).filter(v=>!isNaN(v));
-  const todayTurbidityAvg = todayTurbidityVals.length ? (todayTurbidityVals.reduce((a,b)=>a+b,0)/todayTurbidityVals.length) : null;
-  const buffer = todayRoTotal - todayPumpYY;
-  const bufferKpi = { id:'buffer_ro', label:'NƯỚC SẠCH GỐI ĐẦU', icon:'🛢️', value: buffer.toFixed(0)+' m³', delta:'', delta_type: buffer>=0?'up':'down', subtext:'RO 2 ca − bơm cho YY' };
-  const pumpIdx = kpiList.findIndex(k=>k.id==='pump_yy');
-  if(pumpIdx>-1) kpiList.splice(pumpIdx+1, 0, bufferKpi); else kpiList.push(bufferKpi);
-  kpiList.push({ id:'turbidity', label:'ĐỘ ĐỤC RO', icon:'🌫️', value: todayTurbidityAvg!==null ? todayTurbidityAvg.toFixed(1)+' NTU' : '—', delta:'', delta_type:'up', subtext:'trung bình hôm nay' });
+  // TOAN BO 10 O KPI gio tu tinh truc tiep tu bao cao ca that (khong con phu thuoc sheet "Chi so KPI" nhap tay nua)
+  const today = new Date();
+  const yesterday = new Date(today); yesterday.setDate(today.getDate()-1);
+  const todayStr = today.toISOString().slice(0,10);
+  const yesterdayStr = yesterday.toISOString().slice(0,10);
+  const allEntries = d.dailyEntries||[];
+  const todayEntries = allEntries.filter(e=>normDateStr(e.date)===todayStr);
+  const yesterdayEntries = allEntries.filter(e=>normDateStr(e.date)===yesterdayStr);
+  const cur = computeSummaryRow(todayEntries);
+  const prev = computeSummaryRow(yesterdayEntries);
+
+  function kpiDelta(curVal, prevVal, decimals){
+    if(curVal===null || prevVal===null || isNaN(curVal) || isNaN(prevVal) || prevVal===0) return { delta:'', delta_type:'up' };
+    const diff = curVal - prevVal;
+    const pct = diff/Math.abs(prevVal)*100;
+    return { delta: (diff>=0?'▲ ':'▼ ')+Math.abs(pct).toFixed(1)+'%', delta_type: diff>=0?'up':'down' };
+  }
+  const buffer = cur.roPermeate - cur.pumpYY;
+
+  const kpiList = [
+    { id:'influent', label:'TỔNG NƯỚC THẢI ĐẦU VÀO', icon:'💧', value:(cur.influent||0).toFixed(0)+' m³', ...kpiDelta(cur.influent,prev.influent), subtext:'so với hôm qua' },
+    { id:'ro_clean', label:'TỔNG NƯỚC SẠCH RO', icon:'🧴', value:(cur.roPermeate||0).toFixed(0)+' m³', ...kpiDelta(cur.roPermeate,prev.roPermeate), subtext:'so với hôm qua' },
+    { id:'pump_yy', label:'NƯỚC BƠM CHO YY HÔM NAY', icon:'🚿', value:(cur.pumpYY||0).toFixed(0)+' m³', ...kpiDelta(cur.pumpYY,prev.pumpYY), subtext:'so với hôm qua' },
+    { id:'buffer_ro', label:'NƯỚC SẠCH GỐI ĐẦU', icon:'🛢️', value: buffer.toFixed(0)+' m³', delta:'', delta_type: buffer>=0?'up':'down', subtext:'RO 2 ca − bơm cho YY' },
+    { id:'recovery', label:'TỶ LỆ RECOVERY', icon:'🔄', value:(cur.recovery!==null?cur.recovery.toFixed(1):'—')+'%', ...kpiDelta(cur.recovery,prev.recovery), subtext:'so với hôm qua' },
+    { id:'ph', label:'pH RO', icon:'🧪', value: cur.ph!==null?cur.ph.toFixed(2):'—', ...kpiDelta(cur.ph,prev.ph), subtext:'so với hôm qua' },
+    { id:'tds', label:'TDS RO', icon:'🌡️', value:(cur.tds!==null?cur.tds.toFixed(0):'—')+' ppm', ...kpiDelta(cur.tds,prev.tds), subtext:'so với hôm qua' },
+    { id:'orp', label:'ORP RO', icon:'🔋', value:(cur.orp!==null?cur.orp.toFixed(0):'—')+' mV', ...kpiDelta(cur.orp,prev.orp), subtext:'so với hôm qua' },
+    { id:'color', label:'ĐỘ MÀU RO', icon:'🎨', value:(cur.color!==null?cur.color.toFixed(1):'—')+' Pt-Co', ...kpiDelta(cur.color,prev.color), subtext:'so với hôm qua' },
+    { id:'turbidity', label:'ĐỘ ĐỤC RO', icon:'🌫️', value:(cur.turbidity!==null?cur.turbidity.toFixed(1):'—')+' NTU', ...kpiDelta(cur.turbidity,prev.turbidity), subtext:'so với hôm qua' }
+  ];
   kpiRow.innerHTML = kpiList.map(k=>`
     <div class="kpi">
       <div class="kpi-top"><div class="kpi-icon">${kpiIconHtml(k)}</div><div class="kpi-label">${k.label}</div></div>
