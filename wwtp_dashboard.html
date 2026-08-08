@@ -223,7 +223,7 @@
       <a data-page="nhap_hoa_chat" onclick="showPage('nhap_hoa_chat','Nhập hóa chất')"><span class="ic">🧴</span> Nhập hóa chất</a>
       <a data-page="baocao" onclick="showPage('baocao','Đặt hàng hóa chất')"><span class="ic">📦</span> Đặt hàng hóa chất</a>
       <a data-page="canh_bao" onclick="showPage('canh_bao','Cảnh báo')"><span class="ic">🔔</span> Cảnh báo<span id="alertBadge" class="alert-badge" style="display:none;"></span></a>
-      <a data-page="cip" onclick="showPage('cip','CIP RO & UF')"><span class="ic">🧽</span> CIP RO & UF</a>
+      <a data-page="cip" onclick="showPage('cip','Vệ sinh & Bảo trì')"><span class="ic">🧽</span> Vệ sinh & Bảo trì</a>
       <a data-page="cai_dat" onclick="showPage('cai_dat','Cài đặt')"><span class="ic">⚡</span> Cài đặt</a>
     </div>
 
@@ -516,6 +516,11 @@
       <div id="cipStatusList"></div>
       <h4 style="margin-top:16px;">Lịch sử CIP gần đây</h4>
       <div style="overflow-x:auto;"><table><thead><tr><th>Ngày</th><th>Hệ thống</th><th>Hóa chất</th><th>Ghi chú</th></tr></thead><tbody id="cipHistoryBody"></tbody></table></div>
+
+      <h4 style="margin-top:20px;">🔧 Tình trạng vệ sinh cơ học (TMF & Lọc túi)</h4>
+      <div id="mechStatusList"></div>
+      <h4 style="margin-top:16px;">Lịch sử vệ sinh / thay thế lọc & phụ kiện</h4>
+      <div style="overflow-x:auto;"><table><thead><tr><th>Ngày</th><th>Ca</th><th>Hệ thống</th><th>Vệ sinh nước</th><th>Thay thế</th><th>Phụ kiện</th></tr></thead><tbody id="mechHistoryBody"></tbody></table></div>
     </div>
 
     <div class="panel wide" id="panel-pSettings">
@@ -1416,6 +1421,60 @@ function renderCIP(d){
       return `<tr><td>${c.date||''}</td><td>${c.system||''}</td><td>${chemStr}</td><td>${c.note||''}</td></tr>`;
     }).join('') || '<tr><td colspan="4" style="color:var(--gray);">Chưa có lịch sử CIP.</td></tr>';
   }
+  renderMechMaintenance(d);
+}
+
+function renderMechMaintenance(d){
+  const items = ['TMF A','TMF B','Lọc túi A','Lọc túi B'];
+  const entries = (d.dailyEntries||[])
+    .map(e=>({...e, dt:parseDateSmart(e.date)}))
+    .filter(e=>e.dt && e.tasks_detail_json)
+    .sort((a,b)=>a.dt-b.dt);
+
+  // Gom cac su kien vao list phang: {dt, date, shift, item, wash, replace_qty, accessory, accessory_qty}
+  const events = [];
+  entries.forEach(e=>{
+    let parsed; try{ parsed = JSON.parse(e.tasks_detail_json); }catch(err){ return; }
+    if(!parsed.mech_clean) return;
+    items.forEach(item=>{
+      const info = parsed.mech_clean[item];
+      if(!info) return;
+      events.push({
+        dt: e.dt, date: e.date, shift: e.shift, item,
+        wash: info.ve_sinh_bang_nuoc === 'Có',
+        replaceQty: info.thay_the_so_luong || '',
+        accessory: info.phu_kien || '',
+        accessoryQty: info.phu_kien_so_luong || ''
+      });
+    });
+  });
+
+  // Tinh so ngay tu lan ve sinh nuoc gan nhat cho tung he thong
+  const today = new Date();
+  const statusEl = document.getElementById('mechStatusList');
+  if(statusEl){
+    statusEl.innerHTML = items.map(item=>{
+      const washEvents = events.filter(ev=>ev.item===item && ev.wash);
+      if(washEvents.length===0){
+        return `<div class="bar-item"><div class="lbl">${item} <b style="color:var(--gray)">Chưa có dữ liệu vệ sinh</b></div><div class="bar-track"><div class="bar-fill" style="width:0%;"></div></div></div>`;
+      }
+      const latest = washEvents[washEvents.length-1];
+      const days = Math.floor((today - latest.dt)/86400000);
+      const warn = days>=14; // TMF/Loc tui thuong can ve sinh thuong xuyen hon CIP
+      return `<div class="bar-item"><div class="lbl">${item} <b style="${warn?'color:var(--red)':'color:var(--green)'}">${days} ngày trước (${latest.date}) ${warn?'⚠️ nên vệ sinh lại':''}</b></div>
+      <div class="bar-track"><div class="bar-fill ${warn?'warn':''}" style="width:${Math.min(100, days/21*100)}%;"></div></div></div>`;
+    }).join('');
+  }
+
+  const histEl = document.getElementById('mechHistoryBody');
+  if(histEl){
+    const sorted = events.slice().sort((a,b)=>b.dt-a.dt).slice(0,20);
+    histEl.innerHTML = sorted.map(ev=>{
+      const replaceTxt = ev.replaceQty ? `${ev.replaceQty} ${ev.item.indexOf('Lọc túi')===0?'cái':'cây'}` : '—';
+      const accTxt = ev.accessory ? `${ev.accessory}${ev.accessoryQty?' x'+ev.accessoryQty:''}` : '—';
+      return `<tr><td>${ev.date||''}</td><td>${ev.shift||''}</td><td>${ev.item}</td><td>${ev.wash?'✅':'—'}</td><td>${replaceTxt}</td><td>${accTxt}</td></tr>`;
+    }).join('') || '<tr><td colspan="6" style="color:var(--gray);">Chưa có lịch sử vệ sinh/thay thế.</td></tr>';
+  }
 }
 
 /* ================= DATA ENTRY FORM ================= */
@@ -1424,10 +1483,15 @@ const MECH_ITEMS = ['TMF A','TMF B','Lọc túi A','Lọc túi B'];
 function buildMechCleanBlocks(){
   const el = document.getElementById('mechCleanBlocks');
   if(!el) return;
-  const ACCESSORY_OPTIONS = ['Ron','Nối ống hơi','Ống hơi','Nắp bịt bông','Van','Khác'];
+  const TMF_ACCESSORIES = ['Ron','Nối ống hơi','Ống hơi','Nắp bịt bông','Van','Khác'];
+  const TUI_ACCESSORIES = ['Ron','Khác'];
   el.innerHTML = MECH_ITEMS.map(item=>{
     const slug = slugify(item);
-    const accOpts = ACCESSORY_OPTIONS.map(a=>`<option>${a}</option>`).join('');
+    const isTui = item.indexOf('Lọc túi') === 0;
+    const replaceLabel = isTui ? 'Thay thế lọc túi (cái hỏng)' : 'Thay thế bông lọc (cây hỏng)';
+    const qtyLabel = isTui ? 'Số cái' : 'Số cây';
+    const accessories = isTui ? TUI_ACCESSORIES : TMF_ACCESSORIES;
+    const accOpts = accessories.map(a=>`<option>${a}</option>`).join('');
     return `<div class="task-block">
       <label class="task-toggle"><input type="checkbox" class="tmech-check" value="${item}" id="task_mech_${slug}" onchange="toggleTaskDetail('task_mech_${slug}','taskDetail_mech_${slug}')">${item}</label>
       <div class="task-detail" id="taskDetail_mech_${slug}" style="display:none;">
@@ -1435,9 +1499,9 @@ function buildMechCleanBlocks(){
           <label><input type="checkbox" class="tmech-wash" data-item="${item}" id="tmech_wash_${slug}" checked> Vệ sinh bằng nước</label>
         </div>
         <div class="ef-row">
-          <label><input type="checkbox" class="tmech-replace" data-item="${item}" id="tmech_replace_${slug}" onchange="toggleMechCartridgeQty('${slug}')"> Thay thế bông lọc (cây hỏng)</label>
+          <label><input type="checkbox" class="tmech-replace" data-item="${item}" id="tmech_replace_${slug}" onchange="toggleMechCartridgeQty('${slug}')"> ${replaceLabel}</label>
           <span id="tmech_cartridge_wrap_${slug}" style="display:none;">
-            <label>Số cây</label>
+            <label>${qtyLabel}</label>
             <input type="number" step="1" class="tmech-cartridge-qty" data-item="${item}" id="tmech_cartridge_qty_${slug}" style="width:60px;" oninput="this.value=this.value?Math.round(this.value):this.value;">
           </span>
         </div>
@@ -1559,7 +1623,7 @@ function collectTasksDetailJSON(){
     }
     mechResult[item] = {
       ve_sinh_bang_nuoc: wash ? 'Có' : '',
-      thay_bong_loc_cay: cartridgeQty,
+      thay_the_so_luong: cartridgeQty,
       phu_kien: accessoryLabel,
       phu_kien_so_luong: accessoryQty
     };
