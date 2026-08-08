@@ -141,6 +141,7 @@
   .ef-detail-table td{padding:3px 4px;font-size:10.5px;}
   .ef-detail-table td.label-col{color:#d8d8d8;width:34%;}
   .ef-detail-table input{width:100%;background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:5px 6px;color:var(--white);font-size:11px;}
+  .ef-detail-table input:invalid{border-color:var(--red);background:rgba(229,72,77,.1);}
   .ef-detail-table th{font-size:9.5px;color:var(--gray2);text-align:center;padding:2px;}
   .ef-row{display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap;}
   .ef-row label{font-size:11px;color:var(--gray);min-width:70px;}
@@ -936,8 +937,8 @@ function buildRoGroup(letter){
   }
   let rows = '';
   ['1','2','3'].forEach(n=>{ rows += r(`CS bơm RO ${letter}-${n} (Hz)`, `cs_ro${l}${n}`); });
-  ['1','2','3'].forEach(n=>{ rows += r(`Áp vào RO ${letter}-${n} (Bar)`, `apvao_ro${l}${n}`); });
-  ['1','2','3'].forEach(n=>{ rows += r(`Áp Reject RO ${letter}-${n} (Bar)`, `apreject_ro${l}${n}`); });
+  ['1','2','3'].forEach(n=>{ rows += r(`Áp vào RO ${letter}-${n} (Bar)`, `apvao_ro${l}${n}`, 'max="15" title="Giá trị hợp lý ~5-7 Bar, nếu ô đỏ viền là số quá lớn"'); });
+  ['1','2','3'].forEach(n=>{ rows += r(`Áp Reject RO ${letter}-${n} (Bar)`, `apreject_ro${l}${n}`, 'max="15" title="Giá trị hợp lý ~2-4 Bar, nếu ô đỏ viền là số quá lớn"'); });
   rows += r(`Nước cấp RO ${letter} (m³/h)`, `nuoccap_ro${l}`);
   rows += r(`Nước sạch RO ${letter} (m³/h)`, `nuocsach_ro${l}`, 'oninput="autoCalcNuocSachRO()"');
   rows += r(`Nước Reject RO ${letter} (m³/h)`, `nuocreject_ro${l}`);
@@ -1159,7 +1160,7 @@ function renderPressureTrend(){
     ]},
     options:{responsive:true,maintainAspectRatio:false,
       plugins:{legend:{position:'bottom',labels:{boxWidth:8,boxHeight:8,padding:8,font:{size:9.5}}}},
-      scales:{y:{min:0,grid:{color:'#26262a'},title:{display:true,text:'Bar',color:'#9aa0a6',font:{size:9}}}, x:{grid:{display:false},ticks:{font:{size:8.5}}}}}
+      scales:{y:{min:0,max:15,grid:{color:'#26262a'},title:{display:true,text:'Bar',color:'#9aa0a6',font:{size:9}}}, x:{grid:{display:false},ticks:{font:{size:8.5}}}}}
   });
 }
 
